@@ -1018,6 +1018,7 @@
 
     <script>
         lucide.createIcons();
+            paintSelectionRings();
 
         let supabaseClient = null;
         let cloudConfigCollapsed = true;
@@ -1030,6 +1031,149 @@
         ];
         let selectedEmojiPackItems = new Set();
         let selectedEmojiPackIdsInList = new Set();
+        let selectedCardIds = new Set();
+        let multiSelectMode = false;
+        let longPressTimer = null;
+        const LONG_PRESS_MS = 500;
+
+        // 支持多选改分类的模块（不含字体与表情包）
+        const MULTI_SELECT_TABS = new Set(['characters','card','cards','regex','extras','gallery','documents','document','worldbook','worldbooks','greetings','scenario']);
+
+        function isMultiSelectTab() {
+            return MULTI_SELECT_TABS.has(currentTab);
+        }
+
+        function exitMultiSelect() {
+            multiSelectMode = false;
+            selectedCardIds.clear();
+            renderItems();
+        }
+
+        function toggleCardSelection(id, e) {
+            if (e) { e.stopPropagation(); e.preventDefault(); }
+            if (selectedCardIds.has(id)) selectedCardIds.delete(id);
+            else selectedCardIds.add(id);
+            if (selectedCardIds.size === 0) multiSelectMode = false;
+            renderItems();
+        }
+
+        function selectAllInView() {
+            document.querySelectorAll('[data-asset-id]').forEach(el => {
+                selectedCardIds.add(el.getAttribute('data-asset-id'));
+            });
+            renderItems();
+        }
+
+        function attachLongPress(el, itemId) {
+            const start = () => {
+                if (!isMultiSelectTab()) return;
+                clearTimeout(longPressTimer);
+                longPressTimer = setTimeout(() => {
+                    multiSelectMode = true;
+                    selectedCardIds.add(itemId);
+                    renderItems();
+                }, LONG_PRESS_MS);
+            };
+            const cancel = () => { clearTimeout(longPressTimer); };
+            const move = () => { cancel(); };
+            el.addEventListener('touchstart', start, {passive:true});
+            el.addEventListener('touchend', cancel);
+            el.addEventListener('touchmove', move);
+            el.addEventListener('mousedown', start);
+            el.addEventListener('mouseup', cancel);
+            el.addEventListener('mouseleave', cancel);
+        }
+
+        async function batchMoveSelectedToFolder(targetFolder) {
+            const target = (targetFolder || '').trim();
+            if (!target) return;
+            const assets = await getAllAssets();
+            let count = 0;
+            for (let a of assets) {
+                if (selectedCardIds.has(a.id)) {
+                    a.subCategory = target;
+                    try { await saveAsset(a); count++; }
+                    catch(err) { showToast('❌', `移动 ${a.name} 失败: ${err.message||err}`); }
+                }
+            }
+            exitMultiSelect();
+            showToast('📁', `已将 ${count} 项移动到 “${target}”`);
+        }
+
+        async function batchDeleteSelected() {
+            if (selectedCardIds.size === 0) return;
+            if (!confirm(`确定要删除已选中的 ${selectedCardIds.size} 项吗？`)) return;
+            const assets = await getAllAssets();
+            let count = 0;
+            for (let a of assets) {
+                if (selectedCardIds.has(a.id)) {
+                    try { await deleteAsset(a.id); count++; }
+                    catch(err) { showToast('❌', `删除失败: ${err.message||err}`); }
+                }
+            }
+            exitMultiSelect();
+            showToast('🗑️', `已删除 ${count} 项`);
+        }
+
+        function showBatchMoveDrawer() {
+            if (selectedCardIds.size === 0) {
+                showToast('⚠️', '请先选中项目');
+                return;
+            }
+            const existing = JSON.parse(localStorage.getItem('customFolders_' + currentTab) || '[]');
+            const html = `
+                <div id="multiSelectDrawer" class="fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-2xl shadow-2xl p-4 pb-8 border-t border-[#f2e3e3]">
+                    <div class="w-12 h-1 bg-[#e8d4d7] rounded-full mx-auto mb-3"></div>
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="text-sm font-bold text-[#4a3e3d]">移动 ${selectedCardIds.size} 项到分类</h3>
+                        <button onclick="document.getElementById('multiSelectDrawer').remove()" class="text-[#b89b9d] text-xl">×</button>
+                    </div>
+                    <div class="mb-3">
+                        <input id="newFolderNameInput" type="text" maxlength="12" placeholder="+ 新建分类名" class="w-full px-3 py-2 border border-[#f2dadc] rounded-lg text-sm focus:outline-none focus:border-[#d88c9a]">
+                    </div>
+                    <div class="max-h-60 overflow-y-auto space-y-1">
+                        <button onclick="batchMoveSelectedToFolder('未分类');document.getElementById('multiSelectDrawer').remove()" class="w-full text-left px-3 py-2 rounded-lg hover:bg-[#fdf4f5] text-sm text-[#4a3e3d]">📂 未分类</button>
+                        ${existing.map(f => `<button onclick="batchMoveSelectedToFolder('${f.replace(/'/g, "\\'")}');document.getElementById('multiSelectDrawer').remove()" class="w-full text-left px-3 py-2 rounded-lg hover:bg-[#fdf4f5] text-sm text-[#4a3e3d]">📂 ${f}</button>`).join('')}
+                    </div>
+                    <button onclick="(async()=>{const v=document.getElementById('newFolderNameInput').value.trim();if(!v){showToast('⚠️','请输入分类名');return;}const arr=JSON.parse(localStorage.getItem('customFolders_'+currentTab)||'[]');if(!arr.includes(v))arr.push(v);localStorage.setItem('customFolders_'+currentTab,JSON.stringify(arr));await batchMoveSelectedToFolder(v);document.getElementById('multiSelectDrawer').remove();})()" class="mt-3 w-full py-2.5 bg-[#d88c9a] text-white rounded-lg font-bold text-sm">保存到新分类</button>
+                </div>
+            `;
+            const wrap = document.createElement('div');
+            wrap.innerHTML = html;
+            document.body.appendChild(wrap.firstElementChild);
+        }
+
+        function renderMultiSelectBar() {
+            if (!multiSelectMode || !isMultiSelectTab()) return '';
+            const cnt = selectedCardIds.size;
+            return `
+                <div class="col-span-full sticky top-0 z-30 bg-[#fdf4f5]/95 backdrop-blur border border-[#f5e1e3] rounded-xl p-2 mb-2 flex items-center justify-between shadow-sm">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-bold text-[#b86b7a]">已选 ${cnt} 项</span>
+                        <button onclick="exitMultiSelect()" class="text-[11px] text-[#b89b9d] hover:underline">取消</button>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <button onclick="selectAllInView()" class="px-2 py-1 text-[11px] rounded-md bg-white border border-[#f2dadc] text-[#4a3e3d]">全选</button>
+                        <button onclick="showBatchMoveDrawer()" class="px-2 py-1 text-[11px] rounded-md bg-[#d88c9a] text-white font-bold">移动分类</button>
+                        <button onclick="batchDeleteSelected()" class="px-2 py-1 text-[11px] rounded-md bg-white border border-[#e8a8b3] text-[#b8586a]">删除</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function paintSelectionRings() {
+            if (!multiSelectMode || !isMultiSelectTab()) return;
+            document.querySelectorAll('[data-asset-id]').forEach(el => {
+                if (el.querySelector('.multi-select-ring')) return;
+                const id = el.getAttribute('data-asset-id');
+                const ring = document.createElement('div');
+                const checked = selectedCardIds.has(id);
+                ring.className = 'multi-select-ring absolute top-2 right-2 z-20 w-6 h-6 rounded-full flex items-center justify-center cursor-pointer border-2 ' + (checked ? 'bg-[#d88c9a] border-[#d88c9a]' : 'bg-white/80 border-[#d88c9a]');
+                ring.innerHTML = checked ? '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>' : '';
+                ring.onclick = (e) => { e.stopPropagation(); toggleCardSelection(id, e); };
+                el.appendChild(ring);
+            });
+        }
 
         function showToast(icon, message, duration = 3000) {
             const container = document.getElementById('toastContainer');
@@ -2044,6 +2188,8 @@
             container.className = "grid grid-cols-2 gap-2.5";
 
             renderTagFilterBar();
+            const __multiBar = renderMultiSelectBar();
+            if (__multiBar) container.insertAdjacentHTML('afterbegin', __multiBar);
 
             const builderPanel = document.getElementById('emojiExportBuilderPanel');
             const extrasPanel = document.getElementById('extrasBuilderPanel');
@@ -2094,7 +2240,8 @@
                 return nameMatch || tagMatch || textMatch || personalityMatch || wbMatch;
             });
             // document.getElementById('itemCountText').innerText
-            if (filtered.length === 0) { container.innerHTML = `<div class="col-span-full py-20 text-center text-[#b89b9d]"><i data-lucide="inbox" class="w-10 h-10 mx-auto mb-2 opacity-30"></i><p class="text-xs">暂无资产</p></div>`; lucide.createIcons(); return; }
+            if (filtered.length === 0) { container.innerHTML = `<div class="col-span-full py-20 text-center text-[#b89b9d]"><i data-lucide="inbox" class="w-10 h-10 mx-auto mb-2 opacity-30"></i><p class="text-xs">暂无资产</p></div>`; lucide.createIcons();
+            paintSelectionRings(); return; }
 
             
             // Category/Folder First View (Except emojis and fonts)
@@ -2141,6 +2288,7 @@
                         container.appendChild(fCard);
                     });
                     lucide.createIcons();
+            paintSelectionRings();
                     return;
                 } else if (currentFolderOpened && !keyword) {
                     // Filter assets inside this folder
@@ -2167,8 +2315,22 @@
             filtered.forEach(item => {
 
                 const card = document.createElement('div');
-                card.className = "ui-card p-3 flex flex-col justify-between cursor-pointer hover:border-[#d88c9a] transition active:scale-[0.99] relative group";
-                card.onclick = () => openDetailView(item);
+                card.setAttribute('data-asset-id', item.id);
+                if (isMultiSelectTab() && multiSelectMode) {
+                    card.className = "ui-card p-3 flex flex-col justify-between cursor-pointer transition active:scale-[0.99] relative " + (selectedCardIds.has(item.id) ? "border-2 border-[#d88c9a] bg-[#fdf4f5] " : "border border-[#f2dadc] ");
+                } else {
+                    card.className = "ui-card p-3 flex flex-col justify-between cursor-pointer hover:border-[#d88c9a] transition active:scale-[0.99] relative group";
+                }
+                card.onclick = () => {
+                    if (isMultiSelectTab() && multiSelectMode) {
+                        toggleCardSelection(item.id);
+                    } else {
+                        openDetailView(item);
+                    }
+                };
+                if (isMultiSelectTab()) {
+                    attachLongPress(card, item.id);
+                }
 
                 if (currentTab === 'gallery') {
                     const imgUrl = getAssetImageUrl(item);
