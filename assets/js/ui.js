@@ -1135,13 +1135,7 @@ if (fileIn) {
 
                 if (currentTab === 'links') {
                     const linkUrl = item.url || item.rawText || '#';
-                    // Override card.onclick for links: NEVER call openDetailView! Open browser or preview url directly!
-                    card.onclick = (e) => {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        openLinkInDefaultBrowser(linkUrl);
-                    };
-                    card.className = "ui-card col-span-full w-full p-4 flex flex-col gap-3 hover:border-[#60a5fa] transition relative group bg-white/75 rounded-2xl border border-white/80 shadow-sm backdrop-blur-md cursor-pointer";
+                    card.className = "ui-card col-span-full w-full p-4 flex flex-col gap-3 hover:border-[#60a5fa] transition relative group bg-white/75 rounded-2xl border border-white/80 shadow-sm backdrop-blur-md";
                     card.innerHTML = `
                         <div class="flex items-center justify-between gap-3">
                             <div class="flex items-center gap-3 min-w-0">
@@ -1245,10 +1239,10 @@ if (fileIn) {
             if (secondaryBar) {
                 if (item.category === 'cards') {
                     secondaryBar.classList.remove('hidden');
-                    secondaryBar.style.display = '';
+                    secondaryBar.style.setProperty('display', 'flex', 'important');
                 } else {
                     secondaryBar.classList.add('hidden');
-                    secondaryBar.style.display = 'none';
+                    secondaryBar.style.setProperty('display', 'none', 'important');
                 }
             }
             if (overviewSubview && item.category !== 'cards') {
@@ -1262,59 +1256,62 @@ if (fileIn) {
             if (item.category === 'links' || currentTab === 'links') {
                 document.getElementById('headerExportActions').innerHTML = '';
                 const charaBar = document.getElementById('secondaryPillsBar');
-                if (charaBar) charaBar.classList.add('hidden');
+                if (charaBar) { charaBar.classList.add('hidden'); charaBar.style.setProperty('display', 'none', 'important'); }
                 switchDetailTab('theme-standalone');
                 
                 const linkUrl = item.url || item.rawText || '#';
                 const container = document.getElementById('subview-theme-standalone');
 
-                container.innerHTML = `
-                    <div class="w-full space-y-3 pt-1">
-                        <!-- 顶栏精美标题卡 (莫兰迪灰粉调, 对齐美化资产风格) -->
-                        <div class="w-full bg-white/90 rounded-2xl p-4 border border-[#f2dadc] shadow-xs space-y-3">
-                            <div class="flex items-center justify-between gap-2 border-b border-[#f5e1e3] pb-2">
-                                <div class="flex items-center gap-1.5 text-xs font-bold text-[#b86b7a]">
-                                    <i data-lucide="link" class="w-4 h-4 text-[#d88c9a]"></i>
-                                    <span>🔗 网址链接资产</span>
+                if (container) {
+                    container.innerHTML = `
+                        <div class="w-full space-y-3 pt-1">
+                            <!-- 顶栏精美标题卡 (莫兰迪灰粉调, 对齐美化资产风格) -->
+                            <div class="w-full bg-white/90 rounded-2xl p-4 border border-[#f2dadc] shadow-xs space-y-3">
+                                <div class="flex items-center justify-between gap-2 border-b border-[#f5e1e3] pb-2">
+                                    <div class="flex items-center gap-1.5 text-xs font-bold text-[#b86b7a]">
+                                        <i data-lucide="link" class="w-4 h-4 text-[#d88c9a]"></i>
+                                        <span>🔗 网址链接资产</span>
+                                    </div>
+                                    <button type="button" onclick="renameCurrentItem()" class="px-3 py-1 rounded-full bg-[#fdf4f5] border border-[#f2dadc] text-[#b86b7a] text-xs font-bold hover:bg-[#f2dadc] transition flex items-center gap-1 shrink-0">
+                                        ✏️ 修改名字
+                                    </button>
                                 </div>
-                                <button type="button" onclick="renameCurrentItem()" class="px-3 py-1 rounded-full bg-[#fdf4f5] border border-[#f2dadc] text-[#b86b7a] text-xs font-bold hover:bg-[#f2dadc] transition flex items-center gap-1 shrink-0">
-                                    ✏️ 修改名字
+                                
+                                <!-- 名字展示区 -->
+                                <div class="text-base font-bold text-[#4a3e3d] break-all leading-relaxed pt-1">
+                                    ${item.name}
+                                </div>
+                                
+                                <!-- 网址指标卡 -->
+                                <div class="bg-[#fdf6f7] p-3 rounded-xl border border-[#f2dadc] space-y-1">
+                                    <span class="text-[10px] text-[#8c7173] font-bold block">目标 URL 网址</span>
+                                    <span class="text-xs font-mono text-[#b86b7a] break-all block selection:bg-rose-100">${linkUrl}</span>
+                                </div>
+                            </div>
+
+                            <!-- 默认浏览器唤起大按钮 -->
+                            <div class="w-full pb-1">
+                                <button type="button" onclick="openLinkInDefaultBrowser('${linkUrl}')" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#d88c9a] to-[#c97b8b] text-white font-bold text-xs shadow-md hover:opacity-90 transition flex items-center justify-center gap-2">
+                                    🚀 在系统默认浏览器中打开
                                 </button>
                             </div>
                             
-                            <!-- 名字展示区 -->
-                            <div class="text-base font-bold text-[#4a3e3d] break-all leading-relaxed pt-1">
-                                ${item.name}
+                            <!-- 复制与删除双按钮区 -->
+                            <div class="grid grid-cols-2 gap-2.5 pt-1">
+                                <button type="button" onclick="navigator.clipboard.writeText('${linkUrl}'); showToast('📋', '链接已成功复制！');" class="w-full py-3 rounded-xl bg-[#fdf4f5] border border-[#f2dadc] text-[#b86b7a] font-bold text-xs hover:bg-[#f2dadc] transition flex items-center justify-center gap-1.5">
+                                    📋 复制 URL 链接
+                                </button>
+                                <button type="button" onclick="deleteCurrentItem()" class="w-full py-3 rounded-xl bg-[#f5e1e3] border border-[#f2dadc] text-[#c95368] font-bold text-xs hover:bg-[#f0cfd3] transition flex items-center justify-center gap-1.5">
+                                    🗑️ 删除此链接
+                                </button>
                             </div>
-                            
-                            <!-- 网址指标卡 -->
-                            <div class="bg-[#fdf6f7] p-3 rounded-xl border border-[#f2dadc] space-y-1">
-                                <span class="text-[10px] text-[#8c7173] font-bold block">目标 URL 网址</span>
-                                <span class="text-xs font-mono text-[#b86b7a] break-all block selection:bg-rose-100">${linkUrl}</span>
-                            </div>
                         </div>
-
-                        <!-- 默认浏览器唤起大按钮 -->
-                        <div class="w-full pb-1">
-                            <button type="button" onclick="openLinkInDefaultBrowser('${linkUrl}')" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#d88c9a] to-[#c97b8b] text-white font-bold text-xs shadow-md hover:opacity-90 transition flex items-center justify-center gap-2">
-                                🚀 在系统默认浏览器中打开
-                            </button>
-                        </div>
-                        
-                        <!-- 复制与删除双按钮区 -->
-                        <div class="grid grid-cols-2 gap-2.5 pt-1">
-                            <button type="button" onclick="navigator.clipboard.writeText('${linkUrl}'); showToast('📋', '链接已成功复制！');" class="w-full py-3 rounded-xl bg-[#fdf4f5] border border-[#f2dadc] text-[#b86b7a] font-bold text-xs hover:bg-[#f2dadc] transition flex items-center justify-center gap-1.5">
-                                📋 复制 URL 链接
-                            </button>
-                            <button type="button" onclick="deleteCurrentItem()" class="w-full py-3 rounded-xl bg-[#f5e1e3] border border-[#f2dadc] text-[#c95368] font-bold text-xs hover:bg-[#f0cfd3] transition flex items-center justify-center gap-1.5">
-                                🗑️ 删除此链接
-                            </button>
-                        </div>
-                    </div>
-                `;
+                    `;
+                }
                 lucide.createIcons();
                 return;
             }
+
             // Standalone Worldbook Category Handling
             if (item.category === 'worldbooks') {
                 document.getElementById('secondaryPillsBar').classList.add('hidden');
@@ -1435,8 +1432,6 @@ if (fileIn) {
             }
 
             if (item.category === 'emojis') {
-                const charaBar = document.getElementById('secondaryPillsBar');
-                if (charaBar) charaBar.classList.add('hidden');
                 switchDetailTab('emoji-grid');
                 selectedEmojiPackItems.clear();
                 if (item.emojiList) item.emojiList.forEach(em => selectedEmojiPackItems.add(em.id));
@@ -1648,8 +1643,7 @@ if (fileIn) {
         function closeDetailView() {
             document.getElementById('pageTitle').innerText = '资源合集'; document.getElementById('detailView').classList.add('hidden'); document.getElementById('detailView').classList.remove('flex'); document.getElementById('listView').classList.remove('hidden'); currentItem = null;
         }
-
-        function switchDetailTab(subtab) {
+function switchDetailTab(subtab) {
             document.querySelectorAll('.pill-tab').forEach(b => b.classList.remove('active'));
             const activePill = document.getElementById(`detail-tab-${subtab}`); if (activePill) activePill.classList.add('active');
             
@@ -1658,10 +1652,10 @@ if (fileIn) {
             if (secondaryBar) {
                 if (currentItem && currentItem.category === 'cards' && ['overview', 'greetings', 'worldbook', 'regex'].includes(subtab)) {
                     secondaryBar.classList.remove('hidden');
-                    secondaryBar.style.display = '';
+                    secondaryBar.style.setProperty('display', 'flex', 'important');
                 } else {
                     secondaryBar.classList.add('hidden');
-                    secondaryBar.style.display = 'none';
+                    secondaryBar.style.setProperty('display', 'none', 'important');
                 }
             }
 
@@ -1671,6 +1665,7 @@ if (fileIn) {
                     if (st === subtab) el.classList.remove('hidden'); else el.classList.add('hidden');
                 }
             });
+        }
         }
 
         let selectedWbEntryIndexes = new Set();
