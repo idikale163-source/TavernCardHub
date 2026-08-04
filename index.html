@@ -21,6 +21,16 @@
     <!-- Supabase JS Client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="assets/css/main.css">
+
+<style id="test-gray-pink-overrides">
+#categoryImportBox .ui-card, #linksBuilderPanel, #themeBuilderPanel { color:#6f5b60 !important; }
+#categoryImportBox span, #categoryImportBox button, #categoryImportBox label { color:#9b6875 !important; }
+#categoryImportBox label, #linksBuilderPanel button, #themeBuilderPanel button { border-color:#e8c7cf !important; }
+#categoryImportBox label, #linksBuilderPanel .bg-[#eff6ff] { background:#f8e8ec !important; }
+#linksBuilderPanel h2, #themeBuilderPanel h2 { color:#765c63 !important; }
+#linksBuilderPanel .text-[#2563eb], #linksBuilderPanel .text-[#1e40af] { color:#9b6875 !important; }
+#linksBuilderPanel .bg-[#2563eb] { background:#c98294 !important; }
+</style>
 </head>
 <body class="h-screen flex flex-col overflow-hidden bg-[#faf6f0]">
 
@@ -41,12 +51,7 @@
             <h1 class="font-bold text-base text-[#4a3e3d] tracking-tight" id="pageTitle">资源合集</h1>
         </div>
         <div class="flex items-center gap-2">
-            <label class="cursor-pointer px-3.5 py-1.5 rounded-full bg-[#d88c9a] hover:bg-[#c97b8b] text-white text-xs font-semibold shadow-sm shadow-[#d88c9a]/30 transition flex items-center gap-1.5">
-                <i data-lucide="upload" class="w-3.5 h-3.5"></i>
-                <span>导入文件</span>
-                <input type="file" id="fileInput" multiple accept=".png,.json,.txt,.docx" class="hidden">
-            </label>
-        </div>
+</div>
     </header>
 
     <!-- Main Container -->
@@ -128,6 +133,13 @@
                     <span id="badge-gallery" class="text-[10px] px-2 py-0.5 rounded-full bg-[#f8eeee] text-[#8c7173] font-mono">0</span>
                 </button>
 
+                <button onclick="switchTab('themes', event)" id="tab-themes" class="tab-btn w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-[#785e60] hover:bg-[#fdf4f5] transition">
+                    <div class="flex items-center gap-2.5">
+                        <i data-lucide="sparkles" class="w-4 h-4 text-[#d88c9a]"></i>
+                        <span>美化 (Themes)</span>
+                    </div>
+                    <span id="badge-themes" class="text-[10px] px-2 py-0.5 rounded-full bg-[#f8eeee] text-[#8c7173] font-mono">0</span>
+                </button>
                 <button onclick="switchTab('fonts', event)" id="tab-fonts" class="tab-btn w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-[#785e60] hover:bg-[#fdf4f5] transition">
                     <div class="flex items-center gap-2.5">
                         <i data-lucide="type" class="w-4 h-4 text-[#b87d93]"></i>
@@ -135,9 +147,61 @@
                     </div>
                     <span id="badge-fonts" class="text-[10px] px-2 py-0.5 rounded-full bg-[#f8eeee] text-[#8c7173] font-mono">0</span>
                 </button>
+
+                <button onclick="switchTab('links', event)" id="tab-links" class="tab-btn w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-[#785e60] hover:bg-[#fdf4f5] transition">
+                    <div class="flex items-center gap-2.5">
+                        <i data-lucide="link" class="w-4 h-4 text-[#2563eb]"></i>
+                        <span>🔗 网址与链接 (Links)</span>
+                    </div>
+                    <span id="badge-links" class="text-[10px] px-2 py-0.5 rounded-full bg-[#f8eeee] text-[#8c7173] font-mono">0</span>
+                </button>
+            </div>
+
+            <!-- 📁 自定义添加分类折叠抽屉 -->
+            <div class="bg-[#f8fafc] border border-[#e2e8f0] rounded-2xl p-3 space-y-2">
+                <div class="flex items-center justify-between">
+                    <button onclick="toggleCustomCategoriesCollapse()" class="text-xs font-bold text-[#334155] flex items-center gap-1.5">
+                        <i data-lucide="folder-plus" class="w-4 h-4 text-[#0284c7]"></i>
+                        <span>📁 自定义添加分类</span>
+                        <i data-lucide="chevron-down" id="customCatChevron" class="w-3.5 h-3.5 transition-transform duration-200"></i>
+                    </button>
+                    <button onclick="promptCreateCustomCategory()" class="text-[10px] px-2 py-0.5 rounded-full bg-[#e0f2fe] text-[#0369a1] font-bold hover:bg-[#bae6fd] transition">
+                        + 新增分类
+                    </button>
+                </div>
+
+                <div id="customCategoriesBody" class="space-y-1 pt-1 hidden">
+                    <div id="customCategoriesList" class="space-y-1"></div>
+                </div>
             </div>
 
             <!-- GitHub Sync Collapsible Section -->
+            
+            <!-- 🎨 外观美化与自定义 CSS 代码块 -->
+            <div class="bg-[#fcf5f7] border border-[#f5e1e3] rounded-2xl p-3 space-y-2">
+                <div class="flex items-center justify-between">
+                    <button onclick="toggleCustomCssCollapse()" class="text-xs font-bold text-[#b86b7a] flex items-center gap-1.5">
+                        <i data-lucide="palette" class="w-4 h-4 text-[#d88c9a]"></i>
+                        <span>🎨 外观美化与自定义 CSS</span>
+                        <i data-lucide="chevron-down" id="customCssChevron" class="w-3.5 h-3.5 transition-transform duration-200"></i>
+                    </button>
+                    <span class="text-[9px] px-2 py-0.5 rounded-full bg-[#fdf4f5] text-[#b86b7a] font-semibold">可实时注入</span>
+                </div>
+
+                <div id="customCssBody" class="space-y-2.5 pt-1 hidden">
+                    <div class="flex items-center justify-between">
+                        <label class="block text-[10px] font-semibold text-[#8c7476]">自定义 CSS 样式 (已包含全景晶莹毛玻璃源码)：</label>
+                        <button onclick="restoreDefaultGlassCss()" class="text-[9px] text-[#b86b7a] hover:underline font-bold">🔄 重置为默认毛玻璃</button>
+                    </div>
+                    <div>
+                        <textarea id="userCustomCssInput" placeholder="在此微调或粘贴你的自定义 CSS 代码..." class="w-full h-32 bg-white border border-[#f2e3e3] rounded-lg p-2 text-[10px] font-mono text-[#4a3e3d] focus:outline-none focus:border-[#d88c9a] custom-scrollbar resize-none"></textarea>
+                    </div>
+                    <button onclick="saveAndApplyUserCustomCss()" class="w-full py-1.5 rounded-xl bg-[#d88c9a] text-white hover:bg-[#c97b8b] transition font-bold text-xs text-center shadow-xs">
+                        💾 保存并应用 CSS 样式
+                    </button>
+                </div>
+            </div>
+
             <div class="bg-[#f0f4f8] border border-[#d8e4f2] rounded-2xl p-3 space-y-2">
                 <div class="flex items-center justify-between">
                     <button onclick="toggleGithubConfigCollapse()" class="text-xs font-bold text-[#688ca6] flex items-center gap-1.5">
@@ -369,7 +433,7 @@
                             <label class="block text-[11px] font-bold text-[#784d52] mb-1">网络图片链接:</label>
                             <div class="flex items-center gap-2">
                                 <input type="text" id="galleryUrlInput" placeholder="粘贴 https://... 图片直链" class="flex-1 bg-[#faf6f0] border border-[#f2e3e3] rounded-lg px-2.5 py-1.5 text-xs font-mono text-[#5c494a] focus:outline-none focus:border-[#d88c9a]">
-                                <button type="button" id="galleryUrlSaveBtn" onclick="saveGalleryUrl()" class="px-3 py-1.5 rounded-lg bg-[#f8eeee] text-[#b86b7a] text-xs font-bold shrink-0">保存链接</button>
+                                <button type="button" id="galleryUrlSaveBtn" class="px-3 py-1.5 rounded-lg bg-[#f8eeee] text-[#b86b7a] text-xs font-bold shrink-0">保存链接</button>
                             </div>
                         </div>
                     </div>
@@ -382,6 +446,32 @@
                 </div>
             </div>
             
+            <!-- Custom Panel for Beauty & Theme Import -->
+            <div id="themeBuilderPanel" class="hidden mb-4 ui-card p-4 space-y-3 border-[#f2dadc] bg-[#fdf6f7]">
+                <button type="button" onclick="toggleThemeBuilderPanel()" class="w-full flex items-center justify-between border-b border-[#f2dadc] pb-2 flex-wrap gap-2 text-left">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="sparkles" class="w-4 h-4 text-[#d88c9a]"></i>
+                        <h2 class="text-xs font-bold text-[#5c494a]">美化主题包仓库 (支持 ZIP/JSON/CSS/文档)</h2>
+                    </div>
+                    <span class="flex items-center gap-2 text-[10px] text-[#b86b7a] font-mono">可以直接粘贴代码导入或拖入 ZIP 包 <b id="themeBuilderChevron">⌄</b></span>
+                </button>
+                <div id="themeBuilderBody" class="hidden space-y-2 pt-3">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <input type="text" id="themeTitleInput" placeholder="美化名称 (例如: SullyOS毛玻璃主题、酒馆CSS...)" class="w-full bg-white border border-[#f2dadc] rounded-lg px-2.5 py-1.5 text-xs text-[#5c494a] focus:outline-none focus:border-[#d88c9a]">
+                        <div class="flex items-center gap-2">
+                            <button type="button" onclick="triggerThemeFileInput()" class="px-3 py-1.5 rounded-lg bg-white border border-[#f2dadc] text-[#b86b7a] text-xs font-bold shrink-0 hover:bg-[#fdf4f5]">📁 导入 ZIP / 文件</button>
+                            <input type="file" id="themeFileInput" accept=".zip,.css,.json,.txt,.docx" multiple class="hidden" onchange="handleThemeFilesImport(event)">
+                        </div>
+                    </div>
+                    <div>
+                        <textarea id="themeCodeInput" placeholder="可以在此直接粘贴 CSS 代码或 JSON 美化代码..." class="w-full h-24 bg-white border border-[#f2dadc] rounded-lg p-2 text-xs font-mono text-[#5c494a] focus:outline-none focus:border-[#d88c9a] custom-scrollbar resize-none"></textarea>
+                    </div>
+                    <button type="button" onclick="savePastedThemeCode()" class="w-full py-1.5 rounded-xl bg-[#d88c9a] text-white hover:bg-[#c97b8b] transition font-bold text-xs text-center shadow-xs">
+                        💾 保存粘贴的美化代码
+                    </button>
+                </div>
+            </div>
+
             <!-- Custom Panel for Extras & Side Stories -->
             <div id="extrasBuilderPanel" class="hidden mb-4 ui-card p-4 space-y-3 border-[#e8f0f8] bg-[#f4f8fb]">
                 <div class="flex items-center justify-between border-b border-[#d8e4f2] pb-2 flex-wrap gap-2">
@@ -447,6 +537,25 @@
                             <i data-lucide="plus-circle" class="w-4 h-4"></i>
                             <span>生成表情包总合集</span>
                         </button>
+                    </div>
+                </div>
+            </div>
+
+            
+            <div id="linksBuilderPanel" class="hidden mb-4 ui-card border border-[#dbeafe] bg-[#f8fbff] overflow-hidden">
+                <button type="button" onclick="toggleLinksPanel()" class="w-full p-4 flex items-center justify-between text-left">
+                    <div><h2 class="text-sm font-bold text-[#1e40af]">🔗 网址链接管理</h2><p class="text-[10px] text-[#64748b]">复制粘贴保存 · 分类整理 · 默认浏览器打开</p></div>
+                    <div class="flex items-center gap-2"><span id="linksCountHint" class="text-[10px] text-[#2563eb]">0 条链接</span><span id="linksPanelChevron" class="text-[#60a5fa]">⌄</span></div>
+                </button>
+                <div id="linksPanelBody" class="hidden px-4 pb-4 space-y-2">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <input id="linkTitleInput" type="text" placeholder="链接名称" class="w-full bg-white border border-[#bfdbfe] rounded-lg px-3 py-2 text-xs text-[#1e3a8a]">
+                        <input id="linkUrlInput" type="url" placeholder="粘贴 https://... 网址" class="w-full bg-white border border-[#bfdbfe] rounded-lg px-3 py-2 text-xs font-mono text-[#1e3a8a]">
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-2">
+                        <input id="linkCategoryInput" type="text" placeholder="分类（可选）" class="w-full bg-white border border-[#bfdbfe] rounded-lg px-3 py-2 text-xs text-[#1e3a8a]">
+                        <button type="button" onclick="saveNewLinkAsset()" class="px-4 py-2 rounded-xl bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-xs font-bold">＋保存链接</button>
+                        <button type="button" onclick="pasteLinkFromClipboard()" class="px-4 py-2 rounded-xl bg-[#eff6ff] text-[#2563eb] text-xs font-bold">📋 粘贴</button>
                     </div>
                 </div>
             </div>
@@ -622,6 +731,9 @@
                     <div id="regexEntriesList" class="space-y-3"></div>
                 </div>
 
+                <!-- Dedicated Standalone View for Beauty & Themes -->
+                <div id="subview-theme-standalone" class="w-full space-y-3 hidden pb-12 p-1"></div>
+
                 <div id="subview-doc-full" class="space-y-4 hidden pb-12">
                     <div class="ui-card p-4 space-y-2">
                         <div class="flex items-center justify-between border-b border-[#f7ecee] pb-2">
@@ -643,7 +755,8 @@
     <script src="assets/js/core.js"></script>
     <script src="assets/js/sync.js"></script>
     <script src="assets/js/apikeys.js"></script>
-    <script src="assets/js/ui.js"></script>
+    <script src="assets/js/ui.js?v=20260804_1516"></script>
+    <script src="assets/js/links.js?v=20260804_1421"></script>
     <script src="assets/js/font.js"></script>
 </body>
 </html>
