@@ -1,3 +1,15 @@
+
+function toggleSidebar() {
+    const sidebar = document.getElementById("sidebar");
+    const overlay = document.getElementById("drawerOverlay");
+    if (sidebar) {
+        sidebar.classList.toggle("-translate-x-full");
+    }
+    if (overlay) {
+        overlay.classList.toggle("hidden");
+    }
+}
+
 lucide.createIcons();
 
         let supabaseClient = null;
