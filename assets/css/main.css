@@ -1,0 +1,395 @@
+body { 
+            background-color: #faf6f0; 
+            color: #4a3e3d; 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .ui-card {
+            background: #ffffff;
+            border: 1px solid #f2e3e3;
+            border-radius: 1rem;
+            box-shadow: 0 2px 6px rgba(216, 140, 154, 0.05);
+        }
+        .pill-tab {
+            padding: 0.5rem 1.25rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #8c7173;
+            background: #f5e8e8;
+            transition: all 0.2s;
+        }
+        .pill-tab.active {
+            color: #ffffff;
+            background: #d88c9a;
+            box-shadow: 0 3px 10px rgba(216, 140, 154, 0.3);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #e2c2c6;
+            border-radius: 4px;
+        }
+        .wb-card-container {
+            background: #ffffff;
+            border: 1px solid #f7ecee;
+            border-radius: 0.875rem;
+            padding: 0.875rem;
+            box-shadow: 0 1px 3px rgba(216, 140, 154, 0.03);
+        }
+        .variable-chip {
+            padding: 0.25rem 0.625rem;
+            border-radius: 9999px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.15s;
+            user-select: none;
+        }
+        .variable-chip:hover {
+            transform: translateY(-1px);
+        }
+    
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background-color: #f3efe6;
+            color: #5b5347;
+            font-family: "PingFang SC","Microsoft YaHei",sans-serif;
+            padding: 12px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 720px;
+            margin: 0 auto;
+            background: #faf7f0;
+            padding: 16px;
+            border-radius: 22px;
+            box-shadow: 0 8px 24px rgba(180,140,137,0.18);
+            border: 2px dashed #d8c7bf;
+        }
+
+        .header-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        h2 {
+            color: #b48c89;
+            letter-spacing: 2px;
+            font-size: 20px;
+            margin: 0;
+        }
+
+        .pwa-install-btn {
+            display: none;
+            background: #c9a9a6;
+            color: #fff;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(180,140,137,0.25);
+            transition: 0.2s;
+        }
+        .pwa-install-btn:hover { background: #b48c89; }
+
+        /* 选项卡切换 */
+        .tab-nav {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 10px 8px;
+            background: #efe6dd;
+            border: 1px dashed #c9a9a6;
+            border-radius: 12px;
+            color: #8a7d72;
+            font-weight: bold;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+            white-space: nowrap;
+        }
+        .tab-btn.active {
+            background: #c9a9a6;
+            color: #fff;
+            border-style: solid;
+        }
+
+        /* 内容区 */
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .upload-zone {
+            border: 2px dashed #c9a9a6;
+            border-radius: 16px;
+            padding: 20px 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #fffdf9;
+            margin-bottom: 16px;
+        }
+        .upload-zone:hover, .upload-zone.drag-over {
+            background: #efe6dd;
+            border-color: #b48c89;
+        }
+        .upload-zone .icon { font-size: 28px; margin-bottom: 4px; }
+        .upload-zone .hint { color: #8a7d72; font-size: 13px; }
+        .upload-zone .formats { color: #b48c89; font-size: 11px; margin-top: 4px; }
+        input[type="file"] { display: none; }
+
+        /* 链接输入区 - 响应式弹性布局 */
+        .url-zone {
+            background: #fffdf9;
+            border: 2px dashed #c9a9a6;
+            border-radius: 16px;
+            padding: 14px;
+            margin-bottom: 16px;
+            width: 100%;
+        }
+        .url-input-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 8px;
+            width: 100%;
+        }
+        .url-input-group input[type="text"] {
+            flex: 1 1 200px;
+            min-width: 0;
+            padding: 10px 12px;
+            border-radius: 12px;
+            border: 1px solid #d8c7bf;
+            background: #faf7f0;
+            color: #5b5347;
+            font-size: 13px;
+            outline: none;
+            box-sizing: border-box;
+        }
+        .url-input-group input[type="text"]:focus {
+            border-color: #c9a9a6;
+            box-shadow: 0 0 6px rgba(201,169,166,0.4);
+        }
+        .url-input-group button {
+            flex: 0 0 auto;
+            padding: 10px 16px;
+            background: #c9a9a6;
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            font-weight: bold;
+            font-size: 13px;
+            cursor: pointer;
+            transition: 0.2s;
+            white-space: nowrap;
+        }
+        .url-input-group button:hover { background: #b48c89; }
+        .url-hint { font-size: 11px; color: #b48c89; word-break: break-all; }
+
+        /* 小屏幕处理 */
+        @media (max-width: 480px) {
+            .container { padding: 12px; border-radius: 18px; }
+            .url-input-group { flex-direction: column; }
+            .url-input-group input[type="text"] { width: 100%; flex: none; }
+            .url-input-group button { width: 100%; text-align: center; }
+        }
+
+        /* 统计栏 */
+        .stats-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 0 2px;
+        }
+        .stats-bar .count { font-size: 13px; color: #8a7d72; }
+        .stats-bar .count span { color: #b48c89; font-weight: bold; }
+        .clear-all-btn {
+            background: none;
+            border: 1px dashed #c9a9a6;
+            color: #c9a9a6;
+            padding: 3px 10px;
+            border-radius: 8px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .clear-all-btn:hover { background: #c9a9a6; color: #fff; }
+
+        /* 字体列表 */
+        .font-list {
+            max-height: 240px;
+            overflow-y: auto;
+            background: #fffdf9;
+            border-radius: 14px;
+            margin-bottom: 16px;
+            border: 1px dashed #d8c7bf;
+        }
+        .font-item {
+            padding: 10px 12px;
+            border-bottom: 1px dashed #e6dcd3;
+            cursor: pointer;
+            transition: 0.2s;
+            color: #8a7d72;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .font-item:last-child { border-bottom: none; }
+        .font-item:hover { background: #efe6dd; color: #b48c89; }
+        .font-item.active { background: #efe6dd; color: #b48c89; font-weight: bold; }
+        .font-item .badge {
+            font-size: 10px;
+            padding: 2px 5px;
+            border-radius: 5px;
+            margin-right: 6px;
+            font-weight: normal;
+            flex-shrink: 0;
+        }
+        .badge-file { background: #efe6dd; color: #b48c89; }
+        .badge-url { background: #e2e8f0; color: #64748b; }
+        .font-item .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; min-width: 0; }
+        .font-item .size { font-size: 10px; color: #bfb3a7; margin-left: 8px; flex-shrink: 0; }
+        
+        .font-item .action-btns {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-left: 8px;
+            flex-shrink: 0;
+        }
+        .font-item .action-btn {
+            background: none;
+            border: none;
+            font-size: 14px;
+            cursor: pointer;
+            padding: 2px 3px;
+            transition: 0.2s;
+        }
+        .font-item .action-btn:hover { transform: scale(1.2); }
+        .font-item .del-btn {
+            background: none;
+            border: none;
+            color: #d8c7bf;
+            font-size: 15px;
+            cursor: pointer;
+            padding: 2px 3px;
+            transition: 0.2s;
+        }
+        .font-item .del-btn:hover { color: #c46b6b; }
+
+        .empty-hint {
+            text-align: center;
+            color: #c9b9ae;
+            padding: 30px 15px;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        /* 加载指示 */
+        #loading-indicator {
+            display: none;
+            text-align: center;
+            color: #b48c89;
+            font-size: 12px;
+            margin-bottom: 8px;
+            animation: pulse 1.2s infinite;
+        }
+        @keyframes pulse { 0%,100% { opacity: 0.6; } 50% { opacity: 1; } }
+
+        /* 工具栏 */
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 10px;
+            background: #f3efe6;
+            padding: 8px 10px;
+            border-radius: 14px;
+            border: 1px dashed #d8c7bf;
+            align-items: center;
+        }
+        .tool-group {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 13px;
+            color: #8a7d72;
+        }
+        .tool-group label { white-space: nowrap; }
+        input[type="range"] { accent-color: #c9a9a6; width: 70px; }
+        input[type="color"] {
+            border: none;
+            width: 26px;
+            height: 26px;
+            border-radius: 6px;
+            cursor: pointer;
+            padding: 0;
+            background: transparent;
+        }
+
+        /* 预览区 */
+        #preview-wrapper {
+            position: relative;
+            width: 100%;
+            padding: 12px;
+            box-sizing: border-box;
+            border-radius: 20px;
+            border: 2px dashed #c9a9a6;
+            background-color: #fffdf9;
+            min-height: 320px;
+            display: flex;
+            flex-direction: column;
+        }
+        #preview-box {
+            width: 100%;
+            flex: 1;
+            min-height: 320px;
+            background: rgba(243,239,230,0.6);
+            border: none;
+            resize: vertical;
+            font-size: 18px;
+            line-height: 2;
+            color: #5b5347;
+            outline: none;
+            border-radius: 14px;
+            padding: 14px;
+            box-sizing: border-box;
+        }
+
+        /* toast */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: #b48c89;
+            color: #fff;
+            padding: 8px 20px;
+            border-radius: 12px;
+            font-size: 13px;
+            opacity: 0;
+            transition: all 0.3s;
+            z-index: 999;
+            pointer-events: none;
+            max-width: 90%;
+            text-align: center;
+        }
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* 滚动条 */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #efe6dd; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb { background: #c9a9a6; border-radius: 3px; }
