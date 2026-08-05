@@ -1,6 +1,21 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
+    <script>
+    // 自动强刷旧版 Service Worker 缓存脚本
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(regs => {
+            for (let reg of regs) {
+                reg.unregister();
+            }
+        });
+    }
+    if ('caches' in window) {
+        caches.keys().then(names => {
+            for (let name of names) caches.delete(name);
+        });
+    }
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>资源合集 - ResourceHub</title>
@@ -782,7 +797,7 @@
     <script src="assets/js/core.js?v=1785857812"></script>
     <script src="assets/js/sync.js"></script>
     <script src="assets/js/apikeys.js"></script>
-    <script src="assets/js/ui.js?v=1785911370"></script>
+    <script src="assets/js/ui.js?v=1785912336"></script>
     <script src="assets/js/links.js?v=1785852639"></script>
     <script src="assets/js/font.js"></script>
 </body>
