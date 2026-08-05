@@ -1095,17 +1095,17 @@ async function processFile(file, targetCategory = currentTab) {
                     filtered.length = 0;
                     folderItems.forEach(fi => filtered.push(fi));
 
-                    // Breadcrumb Header
+                    // Breadcrumb Header (最左上角极简粉色胶囊)
                     const breadcrumb = document.createElement('div');
-                    breadcrumb.className = "col-span-full flex items-center justify-between bg-[#fdf4f5] border border-[#f5e1e3] rounded-xl p-2 mb-1";
+                    breadcrumb.className = "col-span-full flex items-center justify-between bg-white/80 backdrop-blur-md border border-white/60 rounded-2xl p-2.5 mb-2.5 shadow-2xs";
                     breadcrumb.innerHTML = `
-                        <div class="flex items-center gap-2">
-                            <button onclick="exitFolderView()" class="px-2.5 py-1 rounded-lg bg-[#d88c9a] text-white text-[11px] font-bold hover:bg-[#c97b8b] transition flex items-center gap-1">
-                                <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i> 返回分类列表
+                        <div class="flex items-center gap-2.5 min-w-0 flex-1">
+                            <button onclick="exitFolderView()" class="px-3 py-1.5 rounded-xl bg-[#d88c9a] text-white text-xs font-bold hover:bg-[#c97b8b] transition flex items-center gap-1 shrink-0 shadow-2xs active:scale-95">
+                                <i data-lucide="chevron-left" class="w-4 h-4"></i> 返回
                             </button>
-                            <span class="text-xs font-bold text-[#4a3e3d]">当前分类：📂 ${currentFolderOpened}</span>
+                            <span class="text-xs font-extrabold text-[#4a3e3d] truncate">📂 ${currentFolderOpened}</span>
                         </div>
-                        <button onclick="promptBatchMoveToFolder()" class="text-[11px] text-[#b86b7a] hover:underline font-semibold">+ 移动选中到新分类</button>
+                        <button onclick="promptBatchMoveToFolder()" class="text-[11px] text-[#b86b7a] hover:underline font-semibold shrink-0 ml-2">+ 移动选中</button>
                     `;
                     container.appendChild(breadcrumb);
                 }
