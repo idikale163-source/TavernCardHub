@@ -1,6 +1,18 @@
 
-// 全局直连导入与持久化新建分类引擎
+
+// 全局直连智能导入引擎
 function triggerGlobalDirectImport() {
+    // 如果处于图库相册，触发图库原生的图片选择
+    if (currentTab === 'gallery') {
+        const galInp = document.getElementById('galleryFileInput');
+        if (galInp) { galInp.click(); return; }
+    }
+    // 如果处于美化包，触发美化包上传
+    if (currentTab === 'themes') {
+        const themeInp = document.getElementById('themeFileInput');
+        if (themeInp) { themeInp.click(); return; }
+    }
+    
     let input = document.getElementById('globalDirectFileInput');
     if (!input) {
         input = document.createElement('input');
@@ -32,26 +44,6 @@ function triggerGlobalDirectImport() {
 }
 window.triggerGlobalDirectImport = triggerGlobalDirectImport;
 
-function promptCreateFolder() {
-    const folderName = prompt('请输入新分类名称：');
-    if (folderName && folderName.trim()) {
-        const cleanName = folderName.trim();
-        let customFolders = [];
-        try {
-            const saved = localStorage.getItem('TAVERN_CUSTOM_FOLDERS_' + currentTab);
-            if (saved) customFolders = JSON.parse(saved);
-        } catch(e){}
-        if (!Array.isArray(customFolders)) customFolders = [];
-        if (!customFolders.includes(cleanName)) {
-            customFolders.push(cleanName);
-            localStorage.setItem('TAVERN_CUSTOM_FOLDERS_' + currentTab, JSON.stringify(customFolders));
-        }
-        currentFolderOpened = null;
-        renderItems();
-        showToast('📂', `已成功创建新分类 “${cleanName}”！`);
-    }
-}
-window.promptCreateFolder = promptCreateFolder;
 
 
 window.getCleanAssetFilename = function(item) {
@@ -1042,7 +1034,7 @@ async function processFile(file, targetCategory = currentTab) {
 
             
             // Category/Folder First View (Except emojis and fonts)
-            if (currentTab !== 'emojis' && currentTab !== 'fonts' && !isCustomCategoryTab(currentTab)) {
+            if (['cards', 'worldbooks', 'docs', 'regex'].includes(currentTab) || isCustomCategoryTab(currentTab)) {
                 if (!currentFolderOpened && !keyword) {
                     // Group by subCategory & Include empty custom folders
                     const folderCounts = {};
@@ -1077,7 +1069,7 @@ async function processFile(file, targetCategory = currentTab) {
                             <div class="w-8.5 h-8.5 rounded-full bg-[#fff0f3] text-[#e11d48] flex items-center justify-center mb-1 shadow-2xs">
                                 <i data-lucide="inbox" class="w-4 h-4 text-[#e11d48]"></i>
                             </div>
-                            <span class="font-bold text-xs text-[#e11d48]">📥 导入角色卡</span>
+                            <span class="font-bold text-xs text-[#e11d48]">${currentTab === 'worldbooks' ? '📥 导入世界书' : (currentTab === 'docs' ? '📥 导入文档' : (currentTab === 'regex' ? '📥 导入正则/脚本' : '📥 导入角色卡'))}</span>
                         </div>
                     `;
                     container.appendChild(addGrid);
