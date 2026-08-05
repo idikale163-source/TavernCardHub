@@ -1,51 +1,4 @@
 
-
-// 全局直连智能导入引擎
-function triggerGlobalDirectImport() {
-    // 如果处于图库相册，触发图库原生的图片选择
-    if (currentTab === 'gallery') {
-        const galInp = document.getElementById('galleryFileInput');
-        if (galInp) { galInp.click(); return; }
-    }
-    // 如果处于美化包，触发美化包上传
-    if (currentTab === 'themes') {
-        const themeInp = document.getElementById('themeFileInput');
-        if (themeInp) { themeInp.click(); return; }
-    }
-    
-    let input = document.getElementById('globalDirectFileInput');
-    if (!input) {
-        input = document.createElement('input');
-        input.type = 'file';
-        input.id = 'globalDirectFileInput';
-        input.multiple = true;
-        input.accept = '*/*';
-        input.className = 'hidden';
-        document.body.appendChild(input);
-        input.onchange = async (e) => {
-            const files = Array.from(e.target.files || []);
-            if (!files.length) return;
-            try {
-                showToast('⌛', `正在导入 ${files.length} 个文件...`);
-                for (const file of files) await processFile(file, currentTab);
-                allAssetsCache = null;
-                updateBadges();
-                await renderItems();
-                showToast('🎉', `成功将 ${files.length} 个文件存入当前分类！`);
-            } catch(err) {
-                console.error(err);
-                showToast('❌', '导入失败：' + (err.message || err));
-            } finally {
-                input.value = '';
-            }
-        };
-    }
-    input.click();
-}
-window.triggerGlobalDirectImport = triggerGlobalDirectImport;
-
-
-
 window.getCleanAssetFilename = function(item) {
     if (!item) return 'theme_file.json';
     const ext = item.fileType || 'json';
@@ -1033,9 +986,8 @@ async function processFile(file, targetCategory = currentTab) {
             }
 
             
-            // Category/Folder First View (仅限常规资产 Tab，绝不污染 themes, links, gallery, fonts, apikeys, emojis 专属页面！)
-            const isExclusiveTab = ['gallery', 'links', 'themes', 'fonts', 'apikeys', 'emojis'].includes(currentTab);
-            if (!isExclusiveTab && (['cards', 'worldbooks', 'docs', 'regex'].includes(currentTab) || isCustomCategoryTab(currentTab))) {
+            // Category/Folder First View (Except emojis and fonts)
+            if (['cards', 'worldbooks', 'docs', 'regex'].includes(currentTab) || isCustomCategoryTab(currentTab)) {
                 if (!currentFolderOpened && !keyword) {
                     // Group by subCategory & Include empty custom folders
                     const folderCounts = {};
@@ -2460,3 +2412,66 @@ window.toggleLinksPanel=toggleLinksPanel;
 
 function toggleThemeBuilderPanel(){ const b=document.getElementById('themeBuilderBody'); const c=document.getElementById('themeBuilderChevron'); if(b){ b.classList.toggle('hidden'); if(c)c.textContent=b.classList.contains('hidden')?'⌄':'⌃'; } }
 window.toggleThemeBuilderPanel=toggleThemeBuilderPanel;
+
+
+// 全局智能直连导入器
+function triggerGlobalDirectImport() {
+    if (currentTab === 'gallery') {
+        const g = document.getElementById('galleryFileInput');
+        if (g) { g.click(); return; }
+    }
+    if (currentTab === 'themes') {
+        const t = document.getElementById('themeFileInput');
+        if (t) { t.click(); return; }
+    }
+    let input = document.getElementById('globalDirectFileInput');
+    if (!input) {
+        input = document.createElement('input');
+        input.type = 'file';
+        input.id = 'globalDirectFileInput';
+        input.multiple = true;
+        input.accept = '*/*';
+        input.className = 'hidden';
+        document.body.appendChild(input);
+        input.onchange = async (e) => {
+            const files = Array.from(e.target.files || []);
+            if (!files.length) return;
+            try {
+                showToast('⌛', `正在导入 ${files.length} 个文件...`);
+                for (const file of files) await processFile(file, currentTab);
+                allAssetsCache = null;
+                updateBadges();
+                await renderItems();
+                showToast('🎉', `成功存入当前分类！`);
+            } catch(err) {
+                console.error(err);
+                showToast('❌', '导入失败：' + (err.message || err));
+            } finally {
+                input.value = '';
+            }
+        };
+    }
+    input.click();
+}
+window.triggerGlobalDirectImport = triggerGlobalDirectImport;
+
+function promptCreateFolder() {
+    const folderName = prompt('请输入新分类名称：');
+    if (folderName && folderName.trim()) {
+        const cleanName = folderName.trim();
+        let customFolders = [];
+        try {
+            const saved = localStorage.getItem('TAVERN_CUSTOM_FOLDERS_' + currentTab);
+            if (saved) customFolders = JSON.parse(saved);
+        } catch(e){}
+        if (!Array.isArray(customFolders)) customFolders = [];
+        if (!customFolders.includes(cleanName)) {
+            customFolders.push(cleanName);
+            localStorage.setItem('TAVERN_CUSTOM_FOLDERS_' + currentTab, JSON.stringify(customFolders));
+        }
+        currentFolderOpened = null;
+        renderItems();
+        showToast('📂', `已成功创建新分类 “${cleanName}”！`);
+    }
+}
+window.promptCreateFolder = promptCreateFolder;
