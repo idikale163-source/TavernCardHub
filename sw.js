@@ -1,12 +1,16 @@
-const CACHE_NAME = "resource-hub-v1785848273";
-self.addEventListener("install", (e) => { self.skipWaiting(); });
-self.addEventListener("activate", (e) => {
+// 物理破冰 Service Worker：注销旧缓存，透传原包
+self.addEventListener('install', (e) => {
+    self.skipWaiting();
+});
+
+self.addEventListener('activate', (e) => {
     e.waitUntil(
         caches.keys().then((keys) => {
-            return Promise.all(keys.map((k) => caches.delete(k)));
+            return Promise.all(keys.map((key) => caches.delete(key)));
         }).then(() => self.clients.claim())
     );
 });
-self.addEventListener("fetch", (e) => {
-    e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
+
+self.addEventListener('fetch', (e) => {
+    e.respondWith(fetch(e.request));
 });
