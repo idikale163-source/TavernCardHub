@@ -43,18 +43,15 @@
     </div>
 
     <!-- Header -->
-    <header class="bg-white/90 backdrop-blur-md border-b border-[#f2e3e3] px-3.5 py-2.5 flex items-center justify-between gap-3 shrink-0 shadow-2xs z-20">
-        <div class="flex items-center gap-2.5 shrink-0">
-            <button onclick="toggleSidebar()" class="p-1.5 rounded-xl hover:bg-[#f8eeee] text-[#785e60] transition active:scale-95" title="菜单">
+    <header class="bg-white border-b border-[#f2e3e3] px-4 py-3 flex items-center justify-between shrink-0">
+        <div class="flex items-center gap-3">
+            <button onclick="toggleSidebar()" class="p-1.5 rounded-xl hover:bg-[#f8eeee] text-[#785e60] transition">
                 <i data-lucide="menu" class="w-5 h-5"></i>
             </button>
-            <h1 class="font-extrabold text-base text-[#4a3e3d] tracking-tight shrink-0" id="pageTitle">资源合集</h1>
+            <h1 class="font-bold text-base text-[#4a3e3d] tracking-tight" id="pageTitle">资源合集</h1>
         </div>
-        <!-- 顶栏右侧同行搜索框 -->
-        <div class="relative flex-1 max-w-[210px] sm:max-w-xs">
-            <i data-lucide="search" class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[#b89b9d]"></i>
-            <input type="text" id="searchInput" oninput="onSearchInputDebounced()" placeholder="搜索：名字、标签、人设..." class="w-full bg-[#f8eeee]/60 border border-[#f2e3e3] rounded-full pl-8 pr-3 py-1.5 text-xs text-[#5c494a] focus:outline-none focus:border-[#d88c9a] transition placeholder:text-[#a89294]">
-        </div>
+        <div class="flex items-center gap-2">
+</div>
     </header>
 
     <!-- Main Container -->
@@ -301,7 +298,17 @@
     <!-- Main Workspace -->
     <main class="flex-1 flex flex-col overflow-hidden bg-[#faf6f0]">
         
-        <!-- Dynamic Tag Pill Filter Bar -->
+        <!-- Search & Tag Filter Area -->
+        <div class="p-3 bg-white border-b border-[#f2e3e3] flex flex-col gap-2 shrink-0">
+            <div class="flex items-center gap-2">
+                <div class="relative flex-1">
+                    <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#b89b9d]"></i>
+                    <input type="text" id="searchInput" oninput="onSearchInputDebounced()" placeholder="全库搜索：名字、标签(Tag)、人设、词条或内容..." class="w-full bg-[#f8eeee]/50 border border-[#f2e3e3] rounded-full pl-9 pr-4 py-1.5 text-xs text-[#5c494a] focus:outline-none focus:border-[#d88c9a] transition">
+                </div>
+                <span id="itemCountText" class="text-xs text-[#a38b8d] font-medium px-1 shrink-0">共 0 项</span>
+            </div>
+
+            <!-- Dynamic Tag Pill Filter Bar -->
             <div id="tagFilterBar" class="flex items-center gap-1.5 overflow-x-auto custom-scrollbar pb-0.5 text-xs">
                 <!-- Tag Pills will be dynamically rendered -->
             </div>
@@ -748,7 +755,7 @@
     <script src="assets/js/core.js?v=1785857812"></script>
     <script src="assets/js/sync.js"></script>
     <script src="assets/js/apikeys.js"></script>
-    <script src="assets/js/ui.js?v=1785902660"></script>
+    <script src="assets/js/ui.js?v=1785903413"></script>
     <script src="assets/js/links.js?v=1785852639"></script>
     <script src="assets/js/font.js"></script>
 </body>
