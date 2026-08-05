@@ -472,31 +472,34 @@
                 </div>
             </div>
 
-            <!-- Custom Panel for Extras & Side Stories -->
-            <div id="extrasBuilderPanel" class="hidden mb-4 ui-card border-[#e8f0f8] bg-[#f4f8fb] overflow-hidden">
-                <div class="flex items-center justify-between border-b border-[#d8e4f2] pb-2 flex-wrap gap-2">
+            <!-- Custom Panel for Extras & Side Stories (极细折叠手账卡片) -->
+            <div id="extrasBuilderPanel" class="hidden mb-3 ui-card border border-[#f2dadc] bg-white/80 backdrop-blur-md rounded-2xl overflow-hidden shadow-2xs">
+                <button type="button" onclick="toggleExtrasPanel()" class="w-full px-3.5 py-2.5 flex items-center justify-between bg-[#fdf4f5]/60 hover:bg-[#fdf4f5] transition text-left cursor-pointer">
                     <div class="flex items-center gap-2">
-                        <i data-lucide="sparkles" class="w-4 h-4 text-[#688ca6]"></i>
-                        <span class="text-xs font-bold text-[#4e6b82]">新建 / 复制粘贴收纳番外与小剧场</span>
+                        <i data-lucide="sparkles" class="w-4 h-4 text-[#d88c9a]"></i>
+                        <span class="text-xs font-extrabold text-[#8c7173]">✨ 快速创建番外 / 小剧场</span>
                     </div>
-                    <div class="text-[11px] text-[#688ca6] font-medium">支持粘贴保存、取名、随时查看复制与导出</div>
-                </div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-[10px] text-[#b89b9d] hidden sm:inline">支持快速文本收纳与导出</span>
+                        <span id="extrasChevron" class="text-[#d88c9a] text-xs font-bold transition-transform duration-200">⌄</span>
+                    </div>
+                </button>
 
-                <div class="bg-white border border-[#d8e4f2] rounded-xl p-3 space-y-2.5">
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
-                        <div class="md:col-span-1">
-                            <label class="block text-[11px] font-bold text-[#4e6b82] mb-1">番外/小剧场 名字:</label>
-                            <input type="text" id="extrasTitleInput" placeholder="例如：夏日海滩番外篇、小剧场#1..." class="w-full bg-[#faf6f0] border border-[#f2e3e3] rounded-lg px-2.5 py-1.5 text-xs text-[#5c494a] focus:outline-none focus:border-[#7a9bb8] font-medium">
+                <div id="extrasBody" class="hidden p-3 border-t border-[#f5e1e3] space-y-2.5 bg-white/50">
+                    <div class="space-y-2">
+                        <div>
+                            <label class="block text-[11px] font-bold text-[#8c7173] mb-1">番外 / 小剧场 标题:</label>
+                            <input type="text" id="extrasTitleInput" placeholder="例如：夏日海滩番外篇、小剧场#1..." class="w-full bg-[#faf6f0] border border-[#f2e3e3] rounded-xl px-3 py-1.5 text-xs text-[#5c494a] focus:outline-none focus:border-[#d88c9a] font-medium">
                         </div>
-                        <div class="md:col-span-2">
-                            <label class="block text-[11px] font-bold text-[#4e6b82] mb-1">粘贴番外/小剧场 内容:</label>
-                            <textarea id="extrasContentInput" placeholder="直接粘贴番外小说、小剧场台词或 Prompt 内容..." class="w-full h-20 bg-[#faf6f0] border border-[#f2e3e3] rounded-lg p-2 text-xs font-mono text-[#5c494a] focus:outline-none focus:border-[#7a9bb8] custom-scrollbar"></textarea>
+                        <div>
+                            <label class="block text-[11px] font-bold text-[#8c7173] mb-1">番外 / 小剧场 正文内容:</label>
+                            <textarea id="extrasContentInput" placeholder="在此直接粘贴番外小说、小剧场台词或 Prompt 内容..." class="w-full h-24 bg-[#faf6f0] border border-[#f2e3e3] rounded-xl p-2.5 text-xs text-[#5c494a] focus:outline-none focus:border-[#d88c9a] custom-scrollbar"></textarea>
                         </div>
                     </div>
-                    <div class="flex justify-end pt-0.5">
-                        <button onclick="savePastedExtrasAsset()" class="px-4 py-1.5 rounded-full bg-[#7a9bb8] hover:bg-[#688ca6] text-white text-xs font-bold shadow-sm shadow-[#7a9bb8]/30 transition flex items-center gap-1.5">
+                    <div class="flex justify-end pt-1">
+                        <button onclick="savePastedExtrasAsset()" class="px-4 py-1.5 rounded-full bg-[#d88c9a] hover:bg-[#c97b8b] text-white text-xs font-bold shadow-2xs transition flex items-center gap-1.5 active:scale-95">
                             <i data-lucide="plus-circle" class="w-4 h-4"></i>
-                            <span>保存番外/小剧场</span>
+                            <span>💾 保存番外 / 小剧场</span>
                         </button>
                     </div>
                 </div>
@@ -683,9 +686,17 @@
                                 <span>角色人设 (Personality & Description)</span>
                                 <i data-lucide="chevron-down" id="personalityChevron" class="w-3.5 h-3.5 transition-transform duration-200"></i>
                             </button>
-                            <button onclick="copyText('overviewPersonalityText')" class="text-xs text-[#a38b8d] hover:text-[#d88c9a] flex items-center gap-1">
-                                <i data-lucide="copy" class="w-3.5 h-3.5"></i> 复制人设
-                            </button>
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <button onclick="copyText('overviewPersonalityText')" class="text-xs text-[#a38b8d] hover:text-[#d88c9a] flex items-center gap-1 transition">
+                                    <i data-lucide="copy" class="w-3.5 h-3.5"></i> 复制人设
+                                </button>
+                                <button onclick="copyCurrentCardLink()" class="text-xs text-[#b86b7a] hover:text-[#d88c9a] flex items-center gap-1 transition font-bold">
+                                    <i data-lucide="link" class="w-3.5 h-3.5"></i> 复制链接
+                                </button>
+                                <button onclick="openCurrentCardLink()" class="text-xs text-[#2563eb] hover:underline flex items-center gap-1 transition font-bold">
+                                    <i data-lucide="external-link" class="w-3.5 h-3.5"></i> 链接跳转
+                                </button>
+                            </div>
                         </div>
                         <div id="overviewPersonalityBody" class="hidden">
                             <div id="overviewPersonalityText" class="text-xs text-[#5c494a] leading-relaxed whitespace-pre-wrap font-sans max-h-96 overflow-y-auto custom-scrollbar pt-2">无纯人设设定</div>
@@ -755,8 +766,8 @@
     <script src="assets/js/core.js?v=1785857812"></script>
     <script src="assets/js/sync.js"></script>
     <script src="assets/js/apikeys.js"></script>
-    <script src="assets/js/ui.js?v=1785909249"></script>
+    <script src="assets/js/ui.js?v=1785909891"></script>
     <script src="assets/js/links.js?v=1785852639"></script>
-    <script src="assets/js/font.js?v=1785909249"></script>
+    <script src="assets/js/font.js"></script>
 </body>
 </html>
