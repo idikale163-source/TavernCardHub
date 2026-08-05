@@ -679,8 +679,24 @@
                         </div>
                     </div>
 
+                    <!-- 关联网址输入设置卡片 -->
+                    <div class="ui-card p-3 bg-[#fdf4f5]/80 border border-[#f2dadc] space-y-2 rounded-2xl shadow-2xs mb-3">
+                        <div class="flex items-center justify-between">
+                            <div class="text-xs font-bold text-[#b86b7a] flex items-center gap-1.5">
+                                <i data-lucide="link-2" class="w-4 h-4 text-[#d88c9a]"></i>
+                                <span>关联网址 / 来源直链 (URL)</span>
+                            </div>
+                            <span class="text-[10px] text-[#b89b9d]">设置后可一键复制或跳转</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="text" id="cardUrlInput" placeholder="填入关联网址，例如：https://..." class="flex-1 bg-white border border-[#f5e1e3] rounded-xl px-3 py-1.5 text-xs text-[#5c494a] focus:outline-none focus:border-[#d88c9a] font-mono shadow-2xs">
+                            <button onclick="saveCardCustomUrl()" class="px-3.5 py-1.5 rounded-xl bg-[#d88c9a] hover:bg-[#c97b8b] text-white text-xs font-bold transition shadow-2xs shrink-0 active:scale-95 flex items-center gap-1">
+                                <i data-lucide="save" class="w-3.5 h-3.5"></i> 保存链接
+                            </button>
+                        </div>
+                    </div>
+
                     <div class="ui-card p-4 space-y-2">
-                        <div class="flex items-center justify-between border-b border-[#f7ecee] pb-2">
                             <button onclick="togglePersonalityCollapse()" class="text-xs font-bold text-[#d88c9a] uppercase tracking-wider flex items-center gap-1.5">
                                 <i data-lucide="user" class="w-4 h-4"></i>
                                 <span>角色人设 (Personality & Description)</span>
@@ -766,7 +782,7 @@
     <script src="assets/js/core.js?v=1785857812"></script>
     <script src="assets/js/sync.js"></script>
     <script src="assets/js/apikeys.js"></script>
-    <script src="assets/js/ui.js?v=1785909891"></script>
+    <script src="assets/js/ui.js?v=1785910216"></script>
     <script src="assets/js/links.js?v=1785852639"></script>
     <script src="assets/js/font.js"></script>
 </body>
