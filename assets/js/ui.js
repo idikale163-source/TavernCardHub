@@ -1,23 +1,36 @@
-function promptCreateFolder() {
-    const folderName = prompt('请输入新分类名称：');
-    if (folderName && folderName.trim()) {
-        const cleanName = folderName.trim();
-        let customFolders = [];
-        try {
-            const saved = localStorage.getItem('TAVERN_CUSTOM_FOLDERS_' + currentTab);
-            if (saved) customFolders = JSON.parse(saved);
-        } catch(e){}
-        if (!Array.isArray(customFolders)) customFolders = [];
-        if (!customFolders.includes(cleanName)) {
-            customFolders.push(cleanName);
-            localStorage.setItem('TAVERN_CUSTOM_FOLDERS_' + currentTab, JSON.stringify(customFolders));
-        }
-        currentFolderOpened = null;
-        renderItems();
-        showToast('📂', `已成功创建新分类 “${cleanName}”！`);
+
+// 全局直连导入与持久化新建分类引擎
+function triggerGlobalDirectImport() {
+    let input = document.getElementById('globalDirectFileInput');
+    if (!input) {
+        input = document.createElement('input');
+        input.type = 'file';
+        input.id = 'globalDirectFileInput';
+        input.multiple = true;
+        input.accept = '*/*';
+        input.className = 'hidden';
+        document.body.appendChild(input);
+        input.onchange = async (e) => {
+            const files = Array.from(e.target.files || []);
+            if (!files.length) return;
+            try {
+                showToast('⌛', `正在导入 ${files.length} 个文件...`);
+                for (const file of files) await processFile(file, currentTab);
+                allAssetsCache = null;
+                updateBadges();
+                await renderItems();
+                showToast('🎉', `成功将 ${files.length} 个文件存入当前分类！`);
+            } catch(err) {
+                console.error(err);
+                showToast('❌', '导入失败：' + (err.message || err));
+            } finally {
+                input.value = '';
+            }
+        };
     }
+    input.click();
 }
-window.promptCreateFolder = promptCreateFolder;
+window.triggerGlobalDirectImport = triggerGlobalDirectImport;
 
 function promptCreateFolder() {
     const folderName = prompt('请输入新分类名称：');
@@ -1050,17 +1063,17 @@ async function processFile(file, targetCategory = currentTab) {
                         folderCounts[fName] = (folderCounts[fName] || 0) + 1;
                     });
 
-                    // Add Create Folder Cards (并排 20px+ 圆角小尺寸卡片按钮)
+                    // Add Create Folder Cards (并排小尺寸卡片按钮)
                     const addGrid = document.createElement('div');
-                    addGrid.className = "col-span-full grid grid-cols-2 gap-3.5 mb-2.5";
+                    addGrid.className = "col-span-full grid grid-cols-2 gap-3.5 mb-3";
                     addGrid.innerHTML = `
-                        <div onclick="promptCreateFolder()" class="p-3.5 rounded-[22px] bg-white/80 backdrop-blur-md border border-white/70 flex flex-col items-center justify-center cursor-pointer hover:border-[#d88c9a] transition active:scale-[0.98] shadow-2xs min-h-[92px]">
+                        <div onclick="promptCreateFolder()" class="p-3.5 rounded-[22px] bg-white/80 backdrop-blur-md border border-white/70 flex flex-col items-center justify-center cursor-pointer hover:border-[#d88c9a] transition active:scale-[0.98] shadow-2xs min-h-[90px]">
                             <div class="w-8.5 h-8.5 rounded-full bg-[#f8eeee] text-[#d88c9a] flex items-center justify-center mb-1 shadow-2xs">
                                 <i data-lucide="folder-plus" class="w-4 h-4"></i>
                             </div>
                             <span class="font-bold text-xs text-[#b86b7a]">+ 创建新分类</span>
                         </div>
-                        <div onclick="toggleCategoryImportPanel()" class="p-3.5 rounded-[22px] bg-white/80 backdrop-blur-md border border-white/70 flex flex-col items-center justify-center cursor-pointer hover:border-[#d88c9a] transition active:scale-[0.98] shadow-2xs min-h-[92px]">
+                        <div onclick="triggerGlobalDirectImport()" class="p-3.5 rounded-[22px] bg-white/80 backdrop-blur-md border border-white/70 flex flex-col items-center justify-center cursor-pointer hover:border-[#d88c9a] transition active:scale-[0.98] shadow-2xs min-h-[90px]">
                             <div class="w-8.5 h-8.5 rounded-full bg-[#fff0f3] text-[#e11d48] flex items-center justify-center mb-1 shadow-2xs">
                                 <i data-lucide="inbox" class="w-4 h-4 text-[#e11d48]"></i>
                             </div>
@@ -1138,17 +1151,17 @@ async function processFile(file, targetCategory = currentTab) {
                     filtered.length = 0;
                     folderItems.forEach(fi => filtered.push(fi));
 
-                    // Breadcrumb Header (最左上角极简返回按钮)
+                    // Breadcrumb Header
                     const breadcrumb = document.createElement('div');
-                    breadcrumb.className = "col-span-full flex items-center justify-between bg-white/80 backdrop-blur-md border border-white/60 rounded-2xl p-2.5 mb-3 shadow-2xs";
+                    breadcrumb.className = "col-span-full flex items-center justify-between bg-[#fdf4f5] border border-[#f5e1e3] rounded-xl p-2 mb-1";
                     breadcrumb.innerHTML = `
-                        <div class="flex items-center gap-2.5 min-w-0 flex-1">
-                            <button onclick="exitFolderView()" class="px-3 py-1.5 rounded-xl bg-[#d88c9a] text-white text-xs font-bold hover:bg-[#c97b8b] transition flex items-center gap-1 shrink-0 shadow-2xs active:scale-95">
-                                <i data-lucide="chevron-left" class="w-4 h-4"></i> 返回
+                        <div class="flex items-center gap-2">
+                            <button onclick="exitFolderView()" class="px-2.5 py-1 rounded-lg bg-[#d88c9a] text-white text-[11px] font-bold hover:bg-[#c97b8b] transition flex items-center gap-1">
+                                <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i> 返回分类列表
                             </button>
-                            <span class="text-xs font-extrabold text-[#4a3e3d] truncate">📂 ${currentFolderOpened}</span>
+                            <span class="text-xs font-bold text-[#4a3e3d]">当前分类：📂 ${currentFolderOpened}</span>
                         </div>
-                        <button onclick="promptBatchMoveToFolder()" class="text-[11px] text-[#b86b7a] hover:underline font-semibold shrink-0 ml-2">+ 移动到分类</button>
+                        <button onclick="promptBatchMoveToFolder()" class="text-[11px] text-[#b86b7a] hover:underline font-semibold">+ 移动选中到新分类</button>
                     `;
                     container.appendChild(breadcrumb);
                 }
