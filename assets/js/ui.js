@@ -1559,14 +1559,14 @@ async function processFile(file, targetCategory = currentTab) {
 
             if (item.category === 'cards') {
                 const btnWb = document.createElement('button'); btnWb.onclick = () => exportCardWorldbookFull(item);
-                btnWb.className = "px-2.5 py-1 rounded-full bg-[#fdf4f5] text-[#b86b7a] hover:bg-[#f8eeee] text-[11px] font-semibold transition flex items-center gap-1 border border-[#f5e1e3]"; btnWb.innerHTML = `<i data-lucide="book-open" class="w-3 h-3"></i> 导出世界书`; container.insertBefore(btnWb, container.firstChild);
+                btnWb.className = "px-2 py-0.8 rounded-xl bg-[#fdf4f5] text-[#b86b7a] hover:bg-[#f8eeee] text-[10px] font-bold transition flex items-center gap-1 border border-[#f5e1e3] shrink-0"; btnWb.innerHTML = `<i data-lucide="book-open" class="w-3 h-3"></i> 导出世界书`; container.insertBefore(btnWb, container.firstChild);
 
                 if (item.fileType === 'png' && item.rawBuffer) {
                     const btnPng = document.createElement('button'); btnPng.onclick = () => downloadBuffer(item.rawBuffer, `${item.name}.png`, 'image/png');
-                    btnPng.className = "px-2.5 py-1 rounded-full bg-[#f8eeee] text-[#b86b7a] hover:bg-[#f5e1e3] text-[11px] font-semibold transition flex items-center gap-1"; btnPng.innerHTML = `<i data-lucide="image" class="w-3 h-3"></i> 导出原卡PNG`; container.insertBefore(btnPng, container.firstChild);
+                    btnPng.className = "px-2 py-0.8 rounded-xl bg-[#f8eeee] text-[#b86b7a] hover:bg-[#f5e1e3] text-[10px] font-bold transition flex items-center gap-1 shrink-0"; btnPng.innerHTML = `<i data-lucide="image" class="w-3 h-3"></i> 导出原卡PNG`; container.insertBefore(btnPng, container.firstChild);
                 }
                 const btnJson = document.createElement('button'); btnJson.onclick = () => downloadText(item.rawText || JSON.stringify(item.cardData, null, 2), `${item.name}.json`, 'application/json');
-                btnJson.className = "px-2.5 py-1 rounded-full bg-[#e8f0f8] text-[#688ca6] hover:bg-[#d8e4f2] text-[11px] font-semibold transition flex items-center gap-1"; btnJson.innerHTML = `<i data-lucide="file-json" class="w-3 h-3"></i> 导出JSON`; container.insertBefore(btnJson, container.firstChild);
+                btnJson.className = "px-2 py-0.8 rounded-xl bg-[#e8f0f8] text-[#688ca6] hover:bg-[#d8e4f2] text-[10px] font-bold transition flex items-center gap-1 shrink-0"; btnJson.innerHTML = `<i data-lucide="file-json" class="w-3 h-3"></i> 导出JSON`; container.insertBefore(btnJson, container.firstChild);
             }
             lucide.createIcons();
         }
