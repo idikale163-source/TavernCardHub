@@ -376,11 +376,22 @@ const DB_NAME = 'FontPreviewBox';
         }
 
         function promptCreateFolder() {
-            const folderName = prompt('请输入新小分类名称：');
+            const folderName = prompt('请输入新分类名称：');
             if (folderName && folderName.trim()) {
-                currentFolderOpened = folderName.trim();
+                const cleanName = folderName.trim();
+                let customFolders = [];
+                try {
+                    const saved = localStorage.getItem('TAVERN_CUSTOM_FOLDERS_' + currentTab);
+                    if (saved) customFolders = JSON.parse(saved);
+                } catch(e){}
+                if (!Array.isArray(customFolders)) customFolders = [];
+                if (!customFolders.includes(cleanName)) {
+                    customFolders.unshift(cleanName); // 优先插在最前方，确保新建后置顶在列表首位！
+                    localStorage.setItem('TAVERN_CUSTOM_FOLDERS_' + currentTab, JSON.stringify(customFolders));
+                }
+                currentFolderOpened = null;
                 renderItems();
-                showToast('📂', `已创建并进入小分类 “${currentFolderOpened}”`);
+                showToast('📂', `已成功创建新分类 “${cleanName}”！`);
             }
         }
 
