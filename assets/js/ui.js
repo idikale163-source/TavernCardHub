@@ -1,3 +1,34 @@
+function copyCurrentCardLink() {
+    if (!currentItem) return;
+    const text = currentItem.rawText || '';
+    const urls = text.match(/https?:\/\/[^\s"'<>]+/gi);
+    if (urls && urls.length) {
+        navigator.clipboard.writeText(urls[0]);
+        showToast('🔗', `已复制关联网址: ${urls[0]}`);
+    } else {
+        const fallbackUrl = window.location.href;
+        navigator.clipboard.writeText(fallbackUrl);
+        showToast('🔗', '已复制当前角色卡直链！');
+    }
+}
+window.copyCurrentCardLink = copyCurrentCardLink;
+
+function openCurrentCardLink() {
+    if (!currentItem) return;
+    const text = currentItem.rawText || '';
+    const urls = text.match(/https?:\/\/[^\s"'<>]+/gi);
+    if (urls && urls.length) {
+        window.open(urls[0], '_blank');
+        showToast('🚀', `已跳转唤起: ${urls[0]}`);
+    } else {
+        showToast('⚠️', '该角色卡内未检测到有效的外部链接');
+    }
+}
+window.openCurrentCardLink = openCurrentCardLink;
+
+function toggleExtrasPanel() { const b = document.getElementById("extrasBody"); const c = document.getElementById("extrasChevron"); if (b) { b.classList.toggle("hidden"); if (c) c.textContent = b.classList.contains("hidden") ? "v" : "^"; } }
+window.toggleExtrasPanel = toggleExtrasPanel;
+
 window.getCleanAssetFilename = function(item) {
     if (!item) return 'theme_file.json';
     const ext = item.fileType || 'json';
