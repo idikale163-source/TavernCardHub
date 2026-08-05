@@ -1018,78 +1018,48 @@ if (fileIn) {
                         folderCounts[fName] = (folderCounts[fName] || 0) + 1;
                     });
 
-                    // Add Create Folder Card
-                    const addCard = document.createElement('div');
-                    addCard.className = "ui-card p-4 flex flex-col items-center justify-center cursor-pointer hover:border-[#d88c9a] border-dashed border-[#f2dadc] bg-[#fdf6f7] transition active:scale-[0.98] min-h-[130px]";
-                    addCard.onclick = () => promptCreateFolder();
-                    addCard.innerHTML = `
-                        <div class="w-9 h-9 rounded-full bg-[#f8eeee] text-[#d88c9a] flex items-center justify-center mb-1.5 shadow-sm">
-                            <i data-lucide="folder-plus" class="w-4 h-4"></i>
+                    // Add Create Folder Cards (并排 20px+ 圆角小尺寸卡片按钮)
+                    const addGrid = document.createElement(x27divx27);
+                    addGrid.className = "col-span-full grid grid-cols-2 gap-3 mb-2";
+                    addGrid.innerHTML = `
+                        <div onclick="promptCreateFolder()" class="p-3.5 rounded-[22px] bg-white/80 border border-[#f5e1e3] flex flex-col items-center justify-center cursor-pointer hover:border-[#d88c9a] transition active:scale-[0.98] shadow-2xs min-h-[96px]">
+                            <div class="w-9 h-9 rounded-full bg-[#f8eeee] text-[#d88c9a] flex items-center justify-center mb-1.5 shadow-2xs">
+                                <i data-lucide="folder-plus" class="w-4.5 h-4.5"></i>
+                            </div>
+                            <span class="font-bold text-xs text-[#b86b7a]">+ 创建新分类</span>
                         </div>
-                        <h3 class="font-bold text-xs text-[#b86b7a] text-center">+ 创建新分类</h3>
+                        <div onclick="const inp = document.querySelector('#categoryImportBox input[type="file"], #jsonFileInput, #globalFileInput'); if(inp) inp.click(); else promptImportDialog();" class="p-3.5 rounded-[22px] bg-white/80 border border-[#f5e1e3] flex flex-col items-center justify-center cursor-pointer hover:border-[#d88c9a] transition active:scale-[0.98] shadow-2xs min-h-[96px]">
+                            <div class="w-9 h-9 rounded-full bg-[#fff0f3] text-[#e11d48] flex items-center justify-center mb-1.5 shadow-2xs">
+                                <i data-lucide="inbox" class="w-4.5 h-4.5 text-[#e11d48]"></i>
+                            </div>
+                            <span class="font-bold text-xs text-[#e11d48]">📥 导入角色卡</span>
+                        </div>
                     `;
-                    container.appendChild(addCard);
+                    container.appendChild(addGrid);
 
                     // Render Folder Cards (竖版, 1排2列，支持长按整体删除)
                     Object.keys(folderCounts).forEach(fName => {
                         const cnt = folderCounts[fName];
                         const fCard = document.createElement('div');
-                        fCard.className = "px-3 py-1.5 rounded-full border border-[#f5e1e3] text-[#b86b7a] bg-white hover:border-[#b86b7a] flex items-center gap-2 cursor-pointer shadow-sm transition active:scale-95 relative select-none";
-                        
-                        let folderLongPressTimer = null;
-                        let isFolderLongPress = false;
-
-                        const startFolderPress = (e) => {
-                            isFolderLongPress = false;
-                            folderLongPressTimer = setTimeout(() => {
-                                isFolderLongPress = true;
-                                if (navigator.vibrate) try { navigator.vibrate(50); } catch(err){}
-                                deleteEntireFolder(fName, cnt);
-                            }, 500);
-                        };
-
-                        const cancelFolderPress = () => {
-                            if (folderLongPressTimer) clearTimeout(folderLongPressTimer);
-                        };
-
-                        fCard.addEventListener('touchstart', startFolderPress, { passive: true });
-                        fCard.addEventListener('touchend', cancelFolderPress);
-                        fCard.addEventListener('touchmove', cancelFolderPress);
-                        fCard.addEventListener('mousedown', startFolderPress);
-                        fCard.addEventListener('mouseup', cancelFolderPress);
-                        fCard.addEventListener('mouseleave', cancelFolderPress);
-
-                        fCard.onclick = (e) => {
-                            if (isFolderLongPress) {
-                                e.stopPropagation();
-                                e.preventDefault();
-                                return;
-                            }
-                            openFolder(fName);
-                        };
-
-                        const deleteBtnHtml = fName !== '未分类' 
-                            ? `<button onclick="event.stopPropagation(); deleteEntireFolder('${fName}', ${cnt});" title="删除分类文件夹" class="w-5 h-5 rounded-full bg-[#f8eeee] hover:bg-[#f2dadc] text-[#b86b7a] flex items-center justify-center transition shadow-2xs">
-                                <i data-lucide="trash-2" class="w-3 h-3"></i>
-                               </button>` 
-                            : '';
-
+                        fCard.className = "col-span-full w-full px-4 py-3 rounded-2xl bg-white/90 border border-[#f5e1e3] flex items-center justify-between shadow-2xs transition active:scale-[0.99] cursor-pointer relative select-none mb-2 min-h-[72px]";
                         fCard.innerHTML = `
-                            <div class="flex items-center justify-between mb-2">
-                                <div class="w-8 h-8 rounded-lg bg-[#fdf4f5] text-[#d88c9a] flex items-center justify-center">
-                                    <i data-lucide="folder" class="w-4 h-4"></i>
+                            <div class="flex items-center gap-3.5 min-w-0 flex-1">
+                                <div class="w-10 h-10 rounded-2xl bg-[#fdf4f5] text-[#d88c9a] flex items-center justify-center shrink-0 shadow-2xs">
+                                    <i data-lucide="folder" class="w-5 h-5 text-[#d88c9a]"></i>
                                 </div>
-                                <div class="flex items-center gap-1.5">
-                                    <span class="text-[10px] px-2 py-0.5 rounded-full bg-[#f8eeee] text-[#b86b7a] font-bold">${cnt} 项</span>
-                                    ${deleteBtnHtml}
+                                <div class="flex flex-col min-w-0 flex-1 gap-0.5">
+                                    <div class="font-extrabold text-sm text-[#4a3e3d] truncate flex items-center gap-2">
+                                        <span>${fName}</span>
+                                        <span class="text-[10px] px-2 py-0.5 rounded-full bg-[#f8eeee] text-[#b86b7a] font-bold">${cnt} 项</span>
+                                    </div>
+                                    <span class="text-[10px] text-[#a89294]">微信式单行文件夹列表</span>
                                 </div>
                             </div>
-                            <div>
-                                <h3 class="font-bold text-xs text-[#4a3e3d] truncate mb-0.5">📂 ${fName}</h3>
-                                <p class="text-[9px] text-[#a89294]">长按或点击右上角删除</p>
+                            <div class="flex items-center gap-2 shrink-0">
+                                ${deleteBtnHtml}
+                                <i data-lucide="chevron-right" class="w-4 h-4 text-[#a89294]"></i>
                             </div>
-                        `;
-                        container.appendChild(fCard);
+                        `;container.appendChild(fCard);
                     });
                     lucide.createIcons();
                     return;
