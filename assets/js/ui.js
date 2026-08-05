@@ -1,5 +1,27 @@
+async function saveCardCustomUrl() {
+    if (!currentItem) return;
+    const input = document.getElementById('cardUrlInput');
+    const url = input ? input.value.trim() : '';
+    currentItem.cardUrl = url;
+    try {
+        await saveAsset(currentItem);
+        allAssetsCache = null;
+        showToast('🎉', url ? '关联网址保存成功！' : '已清空关联网址');
+    } catch(err) {
+        console.error(err);
+        showToast('❌', '保存网址失败');
+    }
+}
+window.saveCardCustomUrl = saveCardCustomUrl;
+
 function copyCurrentCardLink() {
     if (!currentItem) return;
+    const customUrl = currentItem.cardUrl || '';
+    if (customUrl) {
+        navigator.clipboard.writeText(customUrl);
+        showToast('🔗', `已复制关联网址: ${customUrl}`);
+        return;
+    }
     const text = currentItem.rawText || '';
     const urls = text.match(/https?:\/\/[^\s"'<>]+/gi);
     if (urls && urls.length) {
@@ -8,23 +30,30 @@ function copyCurrentCardLink() {
     } else {
         const fallbackUrl = window.location.href;
         navigator.clipboard.writeText(fallbackUrl);
-        showToast('🔗', '已复制当前角色卡直链！');
+        showToast('🔗', '已复制当前角色卡页面直链！');
     }
 }
 window.copyCurrentCardLink = copyCurrentCardLink;
 
 function openCurrentCardLink() {
     if (!currentItem) return;
+    const customUrl = currentItem.cardUrl || '';
+    if (customUrl) {
+        window.open(customUrl, '_blank');
+        showToast('🚀', `已跳转关联网址: ${customUrl}`);
+        return;
+    }
     const text = currentItem.rawText || '';
     const urls = text.match(/https?:\/\/[^\s"'<>]+/gi);
     if (urls && urls.length) {
         window.open(urls[0], '_blank');
         showToast('🚀', `已跳转唤起: ${urls[0]}`);
     } else {
-        showToast('⚠️', '该角色卡内未检测到有效的外部链接');
+        showToast('⚠️', '请先在上方输入框填入并保存关联网址');
     }
 }
 window.openCurrentCardLink = openCurrentCardLink;
+
 
 function toggleExtrasPanel() { const b = document.getElementById("extrasBody"); const c = document.getElementById("extrasChevron"); if (b) { b.classList.toggle("hidden"); if (c) c.textContent = b.classList.contains("hidden") ? "v" : "^"; } }
 window.toggleExtrasPanel = toggleExtrasPanel;
