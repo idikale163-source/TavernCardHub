@@ -1019,7 +1019,7 @@ if (fileIn) {
                     });
 
                     // Add Create Folder Cards (并排 20px+ 圆角小尺寸卡片按钮)
-                    const addGrid = document.createElement(x27divx27);
+                    const addGrid = document.createElement('div');
                     addGrid.className = "col-span-full grid grid-cols-2 gap-3 mb-2";
                     addGrid.innerHTML = `
                         <div onclick="promptCreateFolder()" class="p-3.5 rounded-[22px] bg-white/80 border border-[#f5e1e3] flex flex-col items-center justify-center cursor-pointer hover:border-[#d88c9a] transition active:scale-[0.98] shadow-2xs min-h-[96px]">
@@ -1028,14 +1028,14 @@ if (fileIn) {
                             </div>
                             <span class="font-bold text-xs text-[#b86b7a]">+ 创建新分类</span>
                         </div>
-                        <div onclick="const inp = document.querySelector('#categoryImportBox input[type="file"], #jsonFileInput, #globalFileInput'); if(inp) inp.click(); else promptImportDialog();" class="p-3.5 rounded-[22px] bg-white/80 border border-[#f5e1e3] flex flex-col items-center justify-center cursor-pointer hover:border-[#d88c9a] transition active:scale-[0.98] shadow-2xs min-h-[96px]">
+                        <div onclick="toggleCategoryImportPanel()" class="p-3.5 rounded-[22px] bg-white/80 border border-[#f5e1e3] flex flex-col items-center justify-center cursor-pointer hover:border-[#d88c9a] transition active:scale-[0.98] shadow-2xs min-h-[96px]">
                             <div class="w-9 h-9 rounded-full bg-[#fff0f3] text-[#e11d48] flex items-center justify-center mb-1.5 shadow-2xs">
                                 <i data-lucide="inbox" class="w-4.5 h-4.5 text-[#e11d48]"></i>
                             </div>
                             <span class="font-bold text-xs text-[#e11d48]">📥 导入角色卡</span>
                         </div>
                     `;
-                    container.appendChild(addGrid);
+                    container.appendChild(addGrid);container.appendChild(addGrid);
 
                     // Render Folder Cards (竖版, 1排2列，支持长按整体删除)
                     Object.keys(folderCounts).forEach(fName => {
@@ -1070,16 +1070,17 @@ if (fileIn) {
                     folderItems.forEach(fi => filtered.push(fi));
 
                     // Breadcrumb Header
+                    // Breadcrumb Header (最左上角微信式极简返回按钮)
                     const breadcrumb = document.createElement('div');
-                    breadcrumb.className = "col-span-full flex items-center justify-between bg-[#fdf4f5] border border-[#f5e1e3] rounded-xl p-2 mb-1";
+                    breadcrumb.className = "col-span-full flex items-center justify-between bg-white/70 backdrop-blur-md border border-[#f5e1e3] rounded-2xl p-2.5 mb-2 shadow-2xs";
                     breadcrumb.innerHTML = `
-                        <div class="flex items-center gap-2">
-                            <button onclick="exitFolderView()" class="px-2.5 py-1 rounded-lg bg-[#d88c9a] text-white text-[11px] font-bold hover:bg-[#c97b8b] transition flex items-center gap-1">
-                                <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i> 返回分类列表
+                        <div class="flex items-center gap-2.5 min-w-0 flex-1">
+                            <button onclick="exitFolderView()" class="px-3 py-1.5 rounded-xl bg-[#d88c9a] text-white text-xs font-bold hover:bg-[#c97b8b] transition flex items-center gap-1 shrink-0 shadow-2xs active:scale-95">
+                                <i data-lucide="chevron-left" class="w-4 h-4"></i> 返回
                             </button>
-                            <span class="text-xs font-bold text-[#4a3e3d]">当前分类：📂 ${currentFolderOpened}</span>
+                            <span class="text-xs font-extrabold text-[#4a3e3d] truncate">📂 ${currentFolderOpened}</span>
                         </div>
-                        <button onclick="promptBatchMoveToFolder()" class="text-[11px] text-[#b86b7a] hover:underline font-semibold">+ 移动选中到新分类</button>
+                        <span class="text-[11px] text-[#a89294] font-medium shrink-0 ml-2">共 ${folderAssets.length} 项</span>
                     `;
                     container.appendChild(breadcrumb);
                 }
