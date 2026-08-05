@@ -393,3 +393,45 @@ body {
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: #efe6dd; border-radius: 3px; }
         ::-webkit-scrollbar-thumb { background: #c9a9a6; border-radius: 3px; }
+
+/* Pure Mobile App & Glassmorphism Aesthetic Overrides */
+html, body {
+    height: 100% !important;
+    overflow: hidden !important;
+    background: linear-gradient(135deg, #fdf2f4 0%, #fbe8eb 50%, #f7dee2 100%) !important;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif !important;
+}
+
+main {
+    background: transparent !important;
+    flex: 1 1 0% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+}
+
+#listView {
+    flex: 1 1 0% !important;
+    overflow-y: auto !important;
+    padding: 1rem !important;
+    background: transparent !important;
+}
+
+#itemsContainer {
+    background: transparent !important;
+}
+
+/* Glassmorphism Card Theme */
+.ui-card, .glass-card {
+    background: rgba(255, 255, 255, 0.78) !important;
+    backdrop-filter: blur(16px) saturate(160%) !important;
+    -webkit-backdrop-filter: blur(16px) saturate(160%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.8) !important;
+    border-radius: 20px !important;
+    box-shadow: 0 4px 20px -2px rgba(216, 140, 154, 0.08) !important;
+}
+
+#categoryImportBox .ui-card {
+    background: rgba(255, 255, 255, 0.82) !important;
+    border-radius: 18px !important;
+}
