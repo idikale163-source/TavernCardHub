@@ -712,21 +712,22 @@
                         </div>
                     </div>
 
-                    <div class="ui-card p-4 space-y-2">
-                            <button onclick="togglePersonalityCollapse()" class="text-xs font-bold text-[#d88c9a] uppercase tracking-wider flex items-center gap-1.5">
-                                <i data-lucide="user" class="w-4 h-4"></i>
-                                <span>角色人设 (Personality & Description)</span>
+                    <div class="ui-card p-3.5 bg-white/90 backdrop-blur-md border border-[#f2dadc] space-y-2.5 rounded-2xl shadow-2xs mb-3">
+                        <div class="flex items-center justify-between flex-wrap gap-2 border-b border-[#f7ecee] pb-2">
+                            <button type="button" onclick="togglePersonalityCollapse()" class="text-xs font-extrabold text-[#d88c9a] uppercase tracking-wider flex items-center gap-1.5 hover:opacity-80 transition cursor-pointer">
+                                <i data-lucide="user" class="w-4 h-4 text-[#d88c9a]"></i>
+                                <span>角色人设 (Personality)</span>
                                 <i data-lucide="chevron-down" id="personalityChevron" class="w-3.5 h-3.5 transition-transform duration-200"></i>
                             </button>
-                            <div class="flex items-center gap-2 flex-wrap">
-                                <button onclick="copyText('overviewPersonalityText')" class="text-xs text-[#a38b8d] hover:text-[#d88c9a] flex items-center gap-1 transition">
-                                    <i data-lucide="copy" class="w-3.5 h-3.5"></i> 复制人设
+                            <div class="flex items-center gap-2 flex-wrap shrink-0">
+                                <button type="button" onclick="copyText('overviewPersonalityText')" class="px-2 py-0.8 rounded-lg bg-[#fdf4f5] text-[#b86b7a] hover:bg-[#f8eeee] text-[11px] font-bold transition flex items-center gap-1 border border-[#f5e1e3]">
+                                    <i data-lucide="copy" class="w-3 h-3"></i> 复制人设
                                 </button>
-                                <button onclick="copyCurrentCardLink()" class="text-xs text-[#b86b7a] hover:text-[#d88c9a] flex items-center gap-1 transition font-bold">
-                                    <i data-lucide="link" class="w-3.5 h-3.5"></i> 复制链接
+                                <button type="button" onclick="copyCurrentCardLink()" class="px-2 py-0.8 rounded-lg bg-[#fff0f3] text-[#e11d48] hover:bg-[#ffe4e6] text-[11px] font-bold transition flex items-center gap-1 border border-[#fecdd3]">
+                                    <i data-lucide="link" class="w-3 h-3"></i> 复制链接
                                 </button>
-                                <button onclick="openCurrentCardLink()" class="text-xs text-[#2563eb] hover:underline flex items-center gap-1 transition font-bold">
-                                    <i data-lucide="external-link" class="w-3.5 h-3.5"></i> 链接跳转
+                                <button type="button" onclick="openCurrentCardLink()" class="px-2 py-0.8 rounded-lg bg-[#eff6ff] text-[#2563eb] hover:bg-[#dbeafe] text-[11px] font-bold transition flex items-center gap-1 border border-[#bfdbfe]">
+                                    <i data-lucide="external-link" class="w-3 h-3"></i> 链接跳转
                                 </button>
                             </div>
                         </div>
@@ -798,7 +799,7 @@
     <script src="assets/js/core.js?v=1785857812"></script>
     <script src="assets/js/sync.js"></script>
     <script src="assets/js/apikeys.js"></script>
-    <script src="assets/js/ui.js?v=1785903456"></script>
+    <script src="assets/js/ui.js?v=1785913254"></script>
     <script src="assets/js/links.js?v=1785852639"></script>
     <script src="assets/js/font.js"></script>
 </body>
