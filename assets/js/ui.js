@@ -1033,11 +1033,9 @@ async function processFile(file, targetCategory = currentTab) {
             }
 
             
-            // Category/Folder First View (Except emojis and fonts)
-            if (['cards', 'worldbooks', 'docs', 'regex'].includes(currentTab) || isCustomCategoryTab(currentTab)) {
-                    if (['gallery', 'links', 'themes', 'fonts', 'apikeys', 'emojis'].includes(currentTab)) {
-                        // 绝对隔离专属面板 Tab，严禁污染加塞分类文件夹与导入角色卡按钮！
-                    } else 
+            // Category/Folder First View (仅限常规资产 Tab，绝不污染 themes, links, gallery, fonts, apikeys, emojis 专属页面！)
+            const isExclusiveTab = ['gallery', 'links', 'themes', 'fonts', 'apikeys', 'emojis'].includes(currentTab);
+            if (!isExclusiveTab && (['cards', 'worldbooks', 'docs', 'regex'].includes(currentTab) || isCustomCategoryTab(currentTab))) {
                 if (!currentFolderOpened && !keyword) {
                     // Group by subCategory & Include empty custom folders
                     const folderCounts = {};
