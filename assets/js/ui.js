@@ -1027,7 +1027,12 @@ async function processFile(file, targetCategory = currentTab) {
                     container.appendChild(addGrid);
 
                     // Render Folder Cards (竖版, 1排2列，支持长按整体删除)
-                    Object.keys(folderCounts).forEach(fName => {
+                    const sortedFolders = Object.keys(folderCounts).sort((a, b) => {
+                        if (a === '未分类') return 1;
+                        if (b === '未分类') return -1;
+                        return 0;
+                    });
+                    sortedFolders.forEach(fName => {
                         const cnt = folderCounts[fName];
                         const fCard = document.createElement('div');
                         fCard.className = "col-span-full w-full px-4 py-3.5 rounded-2xl bg-white/80 backdrop-blur-md border border-white/60 flex items-center justify-between shadow-2xs transition active:scale-[0.99] cursor-pointer relative select-none mb-2.5 min-h-[68px]";
@@ -1071,18 +1076,20 @@ async function processFile(file, targetCategory = currentTab) {
                             : '';
 
                         fCard.innerHTML = `
-                            <div class="flex items-center justify-between mb-2">
-                                <div class="w-8 h-8 rounded-lg bg-[#fdf4f5] text-[#d88c9a] flex items-center justify-center">
-                                    <i data-lucide="folder" class="w-4 h-4"></i>
+                            <div class="flex items-center gap-3.5 min-w-0 flex-1">
+                                <div class="w-9.5 h-9.5 rounded-2xl bg-[#fdf4f5] text-[#d88c9a] flex items-center justify-center shrink-0 shadow-2xs">
+                                    <i data-lucide="folder" class="w-4.5 h-4.5 text-[#d88c9a]"></i>
                                 </div>
-                                <div class="flex items-center gap-1.5">
-                                    <span class="text-[10px] px-2 py-0.5 rounded-full bg-[#f8eeee] text-[#b86b7a] font-bold">${cnt} 项</span>
-                                    ${deleteBtnHtml}
+                                <div class="flex flex-col min-w-0 flex-1 gap-0.5">
+                                    <div class="font-extrabold text-sm text-[#4a3e3d] truncate flex items-center gap-2">
+                                        <span>${fName}</span>
+                                        <span class="text-[10px] px-2 py-0.2 rounded-full bg-[#f8eeee] text-[#b86b7a] font-bold">${cnt} 项</span>
+                                    </div>
                                 </div>
                             </div>
-                            <div>
-                                <h3 class="font-bold text-xs text-[#4a3e3d] truncate mb-0.5">📂 ${fName}</h3>
-                                <p class="text-[9px] text-[#a89294]">长按或点击右上角删除</p>
+                            <div class="flex items-center gap-2 shrink-0">
+                                ${deleteBtnHtml}
+                                <i data-lucide="chevron-right" class="w-4 h-4 text-[#a89294]"></i>
                             </div>
                         `;
                         container.appendChild(fCard);
