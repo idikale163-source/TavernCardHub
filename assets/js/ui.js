@@ -130,7 +130,7 @@ function switchTab(tab, e) {
         if (themePanel) themePanel.classList.remove('hidden');
         renderItems();
     } else if (tab === 'links') {
-        if (linksPanel) linksPanel.classList.remove('hidden');
+        if (linksPanel) { linksPanel.classList.remove('hidden'); populateLinkCategorySelect(); }
         renderItems();
     } else {
         renderItems();
@@ -202,7 +202,7 @@ if (fileIn) {
         function isCustomCategoryTab(tab) { return typeof tab === 'string' && tab.indexOf('custom:') === 0; }
         function categoryStorageKey(tab) { return isCustomCategoryTab(tab) ? tab : tab; }
         function cleanImportName(name) { return name.replace(/(\.(json|css|txt|zip|docx|png))+$/gi, '').trim() || '未命名文件'; }
-        function toggleCategoryImportPanel(){ const b=document.getElementById('categoryImportBody'); const c=document.getElementById('categoryImportChevron'); if(b){ b.classList.toggle('hidden'); if(c)c.textContent=b.classList.contains('hidden')?'⌄':'⌃'; } }
+        function toggleCategoryImportPanel(){ const b=document.getElementById('categoryImportBody'); const c=document.getElementById('categoryImportChevron'); if(b){ b.classList.toggle('hidden'); populateLinkCategorySelect(); if(c)c.textContent=b.classList.contains('hidden')?'⌄':'⌃'; } }
         window.toggleCategoryImportPanel=toggleCategoryImportPanel;
         function ensureCategoryImportUI() {
     let box = document.getElementById('categoryImportBox');
@@ -2418,6 +2418,19 @@ async function saveNewLinkAsset() {
         createdAt: Date.now()
     };
 
+    
+    if (subCat) {
+        let customFolders = [];
+        try {
+            const saved = localStorage.getItem('TAVERN_CUSTOM_FOLDERS_links');
+            if (saved) customFolders = JSON.parse(saved);
+        } catch(e){}
+        if (!customFolders.includes(subCat)) {
+            customFolders.unshift(subCat);
+            localStorage.setItem('TAVERN_CUSTOM_FOLDERS_links', JSON.stringify(customFolders));
+        }
+    }
+
     await saveAsset(asset);
     if (titleInput) titleInput.value = '';
     if (urlInput) urlInput.value = '';
@@ -2473,10 +2486,31 @@ document.addEventListener('DOMContentLoaded', () => {
 async function pasteLinkFromClipboard(){ try { const t=await navigator.clipboard.readText(); const el=document.getElementById('linkUrlInput'); if(el) el.value=t.trim(); } catch(e){ showToast('⚠️','请允许读取剪贴板'); } }
 window.pasteLinkFromClipboard=pasteLinkFromClipboard;
 
-function toggleLinksPanel(){ const b=document.getElementById('linksPanelBody'); const c=document.getElementById('linksPanelChevron'); if(b){ b.classList.toggle('hidden'); if(c)c.textContent=b.classList.contains('hidden')?'⌄':'⌃'; } }
+
+function populateLinkCategorySelect() {
+    const sel = document.getElementById('linkCategorySelect');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">一键选择已有分类...</option>';
+    let customFolders = [];
+    try {
+        const saved = localStorage.getItem('TAVERN_CUSTOM_FOLDERS_links');
+        if (saved) customFolders = JSON.parse(saved);
+    } catch(e){}
+    if (Array.isArray(customFolders)) {
+        customFolders.forEach(f => {
+            const opt = document.createElement('option');
+            opt.value = f;
+            opt.innerText = f;
+            sel.appendChild(opt);
+        });
+    }
+}
+window.populateLinkCategorySelect = populateLinkCategorySelect;
+
+function toggleLinksPanel(){ const b=document.getElementById('linksPanelBody'); const c=document.getElementById('linksPanelChevron'); if(b){ b.classList.toggle('hidden'); populateLinkCategorySelect(); if(c)c.textContent=b.classList.contains('hidden')?'⌄':'⌃'; } }
 window.toggleLinksPanel=toggleLinksPanel;
 
-function toggleThemeBuilderPanel(){ const b=document.getElementById('themeBuilderBody'); const c=document.getElementById('themeBuilderChevron'); if(b){ b.classList.toggle('hidden'); if(c)c.textContent=b.classList.contains('hidden')?'⌄':'⌃'; } }
+function toggleThemeBuilderPanel(){ const b=document.getElementById('themeBuilderBody'); const c=document.getElementById('themeBuilderChevron'); if(b){ b.classList.toggle('hidden'); populateLinkCategorySelect(); if(c)c.textContent=b.classList.contains('hidden')?'⌄':'⌃'; } }
 window.toggleThemeBuilderPanel=toggleThemeBuilderPanel;
 
 
