@@ -2663,15 +2663,6 @@ function triggerGlobalDirectImport() {
     }
     input.click();
 }
-                console.error(err);
-                showToast('❌', '导入失败：' + (err.message || err));
-            } finally {
-                input.value = '';
-            }
-        };
-    }
-    input.click();
-}
 window.triggerGlobalDirectImport = triggerGlobalDirectImport;
 
 function promptCreateFolder() {
