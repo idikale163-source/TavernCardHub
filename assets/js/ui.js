@@ -1201,12 +1201,6 @@ window.saveGalleryUrl = saveGalleryUrl;
                                 📥 导入世界书
                             </button>
                         `;
-                    } else if (currentTab === 'regex') {
-                        importBtnHtml = `
-                            <button onclick="triggerGlobalDirectImport()" class="px-2.5 py-1.5 rounded-xl bg-[#fff0f3] border border-[#f2dadc] text-[#e11d48] text-xs font-bold hover:bg-[#ffe4e6] transition flex items-center gap-1 shadow-2xs active:scale-95 shrink-0">
-                                📥 导入番外/小剧场
-                            </button>
-                        `;
                     } else if (currentTab === 'emojis') {
                         importBtnHtml = `
                             <button onclick="triggerGlobalDirectImport()" class="px-2.5 py-1.5 rounded-xl bg-[#fff0f3] border border-[#f2dadc] text-[#e11d48] text-xs font-bold hover:bg-[#ffe4e6] transition flex items-center gap-1 shadow-2xs active:scale-95 shrink-0">
