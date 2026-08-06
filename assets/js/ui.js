@@ -1188,16 +1188,16 @@ window.saveGalleryUrl = saveGalleryUrl;
                             ${importBtnText}
                         </button>
                     `;
-
-                    if (currentTab === 'docs' || currentTab === 'regex') {
-                        rightButtonsHtml = `
-                            <button onclick="toggleDocImportDrawer()" class="px-2.5 py-1.5 rounded-xl bg-[#fdf4f5] border border-[#f2dadc] text-[#b86b7a] text-xs font-bold hover:bg-[#f8eeee] transition flex items-center gap-1 shadow-2xs active:scale-95 shrink-0">
-                                ✏️ 粘贴草稿
-                            </button>
-                            <button onclick="triggerGlobalDirectImport()" class="px-2.5 py-1.5 rounded-xl bg-[#fff0f3] border border-[#f2dadc] text-[#e11d48] text-xs font-bold hover:bg-[#ffe4e6] transition flex items-center gap-1 shadow-2xs active:scale-95 shrink-0">
-                                ${importBtnText}
-                            </button>
-                        `;
+if (currentTab === 'docs' || currentTab === 'regex') {
+                         rightButtonsHtml = `
+                             <button onclick="triggerDocPasteModalPrompt()" class="px-2.5 py-1.5 rounded-xl bg-[#fdf4f5] border border-[#f2dadc] text-[#b86b7a] text-xs font-bold hover:bg-[#f8eeee] transition flex items-center gap-1 shadow-2xs active:scale-95 shrink-0">
+                                 ✏️ 粘贴草稿
+                             </button>
+                             <button onclick="triggerGlobalDirectImport()" class="px-2.5 py-1.5 rounded-xl bg-[#fff0f3] border border-[#f2dadc] text-[#e11d48] text-xs font-bold hover:bg-[#ffe4e6] transition flex items-center gap-1 shadow-2xs active:scale-95 shrink-0">
+                                 ${importBtnText}
+                             </button>
+                         `;
+                     }
                     } else if (currentTab === 'gallery') {
                         rightButtonsHtml = `
                             <button onclick="triggerGalleryLinkInputPrompt()" class="px-2.5 py-1.5 rounded-xl bg-[#fdf4f5] border border-[#f2dadc] text-[#b86b7a] text-xs font-bold hover:bg-[#f8eeee] transition flex items-center gap-1 shadow-2xs active:scale-95 shrink-0">
@@ -1323,8 +1323,6 @@ window.saveGalleryUrl = saveGalleryUrl;
                 container.appendChild(card);
             });
 
-            // 遍历渲染完所有卡片文件后，再调用 renderDocDrawerImportUI，这样草稿框才会真正排在最下面！
-            renderDocDrawerImportUI();
             lucide.createIcons();
         }
 
@@ -1364,9 +1362,10 @@ window.saveGalleryUrl = saveGalleryUrl;
             if (item.category === 'regex') {
                 document.getElementById('secondaryPillsBar').classList.add('hidden');
                 switchDetailTab('doc-full');
-                document.getElementById('docFullTitle').innerHTML = `<i data-lucide="sparkles" class="w-4 h-4 text-[#7a9bb8]"></i><span>番外/小剧场 内容</span>`;
-                document.getElementById('docFullContentText').innerText = item.rawText || '无内容';
-                lucide.createIcons();
+                const textarea = document.getElementById('docFullContentTextarea');
+                if (textarea) textarea.value = item.rawText || '无番外/小剧场内容';
+                renderOverviewTags();
+                renderDocVersionSelectOptions();
                 return;
             }
 
@@ -1501,10 +1500,10 @@ window.saveGalleryUrl = saveGalleryUrl;
                 return;
             }
 
-            // 如果卡片格式是 docx 或 txt 文本类型（或者非 JSON/PNG 深度解析的角色卡），直接切换到文档全文模式，不显示人设世界书等 Tab
+            // 如果卡片格式是 docx 或 txt 文本类型（或者非 JSON/PNG 深度解析的角色卡/世界书/番外），直接切换到文档全文模式，不显示人设世界书等 Tab
             const ext = (item.fileType || '').toLowerCase();
-            const isDeepCard = item.cardData && (item.cardData.data || item.cardData.name || item.cardData.spec);
-            if (ext === 'docx' || ext === 'doc' || ext === 'txt' || !isDeepCard) {
+            const isDeepCard = (item.category === 'cards') && item.cardData && (item.cardData.data || item.cardData.name || item.cardData.spec);
+            if (ext === 'docx' || ext === 'doc' || ext === 'txt' || item.category === 'docs' || item.category === 'regex' || !isDeepCard) {
                 document.getElementById('secondaryPillsBar').classList.add('hidden');
                 switchDetailTab('doc-full');
                 const textarea = document.getElementById('docFullContentTextarea');
@@ -2821,36 +2820,32 @@ function renderDocVersionSelectOptions() {
 window.renderDocVersionSelectOptions = renderDocVersionSelectOptions;
 
 
-async function triggerGalleryLinkInputPrompt() {
-    const url = prompt('请输入或粘贴图片网络直链 (以 https:// 开头)：');
-    if (!url || !url.trim()) return;
-    const cleanUrl = url.trim();
-    if (!/^https?:\/\//i.test(cleanUrl)) {
-        showToast('⚠️', '请输入有效的 https:// 图片直链！');
-        return;
-    }
-    const defaultName = '图片_' + new Date().toLocaleDateString().replace(/\//g, '');
-    const title = prompt('请输入图片名称/备注：', defaultName) || defaultName;
+async function triggerDocPasteModalPrompt() {
+    const defaultName = (currentTab === 'regex' ? '番外_' : '文档_') + new Date().toLocaleDateString().replace(/\//g, '');
+    const title = prompt('请输入标题/备注：', defaultName) || defaultName;
+    const content = prompt('请粘贴或输入长篇文本内容：');
+    
+    if (!content || !content.trim()) return;
 
     try {
-        showToast('⌛', '正在保存网络图片直链...');
+        showToast('⌛', '正在保存草稿...');
+        const saveCategory = (currentTab === 'regex') ? 'regex' : 'docs';
         await saveAsset({
             id: 'asset_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
-            category: 'gallery',
+            category: saveCategory,
             name: title.trim(),
-            fileType: 'img',
-            url: cleanUrl,
-            rawText: cleanUrl,
+            fileType: 'txt',
+            rawText: content.trim(),
             subCategory: currentFolderOpened || '',
             createdAt: Date.now()
         });
         allAssetsCache = null;
         updateBadges();
         await renderItems();
-        showToast('🎉', '网络图片直链保存成功！');
+        showToast('🎉', saveCategory === 'regex' ? '番外/小剧场文本已保存！' : '文本文档已保存！');
     } catch(e) {
         console.error(e);
-        showToast('❌', '保存图片直链失败');
+        showToast('❌', '保存文本失败');
     }
 }
-window.triggerGalleryLinkInputPrompt = triggerGalleryLinkInputPrompt;
+window.triggerDocPasteModalPrompt = triggerDocPasteModalPrompt;
