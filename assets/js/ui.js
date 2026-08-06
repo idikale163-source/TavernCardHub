@@ -1591,15 +1591,37 @@ async function processFile(file, targetCategory = currentTab) {
             }
 
             if (item.category === 'cards') {
-                const btnWb = document.createElement('button'); btnWb.onclick = () => exportCardWorldbookFull(item);
-                btnWb.className = "px-2 py-0.8 rounded-xl bg-[#fdf4f5] text-[#b86b7a] hover:bg-[#f8eeee] text-[10px] font-bold transition flex items-center gap-1 border border-[#f5e1e3] shrink-0"; btnWb.innerHTML = `<i data-lucide="book-open" class="w-3 h-3"></i> 导出世界书`; container.insertBefore(btnWb, container.firstChild);
+                const ext = (item.fileType || '').toLowerCase();
+                if (ext === 'docx' || ext === 'doc' || ext === 'txt') {
+                    const btnTxt = document.createElement('button'); btnTxt.onclick = () => downloadText(item.rawText || '', `${item.name}.txt`, 'text/plain');
+                    btnTxt.className = "px-2 py-0.8 rounded-xl bg-[#fdf4f5] text-[#b86b7a] hover:bg-[#f8eeee] text-[10px] font-bold transition flex items-center gap-1 border border-[#f5e1e3] shrink-0"; btnTxt.innerHTML = `<i data-lucide="file-text" class="w-3 h-3"></i> 导出TXT`; container.insertBefore(btnTxt, container.firstChild);
 
-                if (item.fileType === 'png' && item.rawBuffer) {
-                    const btnPng = document.createElement('button'); btnPng.onclick = () => downloadBuffer(item.rawBuffer, `${item.name}.png`, 'image/png');
-                    btnPng.className = "px-2 py-0.8 rounded-xl bg-[#f8eeee] text-[#b86b7a] hover:bg-[#f5e1e3] text-[10px] font-bold transition flex items-center gap-1 shrink-0"; btnPng.innerHTML = `<i data-lucide="image" class="w-3 h-3"></i> 导出原卡PNG`; container.insertBefore(btnPng, container.firstChild);
+                    const btnDocx = document.createElement('button'); btnDocx.onclick = () => {
+                        const docxContent = `
+                            <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+                            <head><meta charset='utf-8'><title>${item.name}</title></head>
+                            <body>
+                                <h2>${item.name}</h2>
+                                <hr/>
+                                <pre style="font-family: sans-serif; font-size: 13px; line-height: 1.6; white-space: pre-wrap;">${(item.rawText || '').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
+                            </body>
+                            </html>
+                        `;
+                        downloadText(docxContent, `${item.name}.docx`, 'application/vnd.ms-word');
+                        showToast('📘', '已成功导出 DOCX！');
+                    };
+                    btnDocx.className = "px-2 py-0.8 rounded-xl bg-[#e8f0f8] text-[#688ca6] hover:bg-[#d8e4f2] text-[10px] font-bold transition flex items-center gap-1 shrink-0"; btnDocx.innerHTML = `<i data-lucide="file" class="w-3 h-3"></i> 导出DOCX`; container.insertBefore(btnDocx, container.firstChild);
+                } else {
+                    const btnWb = document.createElement('button'); btnWb.onclick = () => exportCardWorldbookFull(item);
+                    btnWb.className = "px-2 py-0.8 rounded-xl bg-[#fdf4f5] text-[#b86b7a] hover:bg-[#f8eeee] text-[10px] font-bold transition flex items-center gap-1 border border-[#f5e1e3] shrink-0"; btnWb.innerHTML = `<i data-lucide="book-open" class="w-3 h-3"></i> 导出世界书`; container.insertBefore(btnWb, container.firstChild);
+
+                    if (item.fileType === 'png' && item.rawBuffer) {
+                        const btnPng = document.createElement('button'); btnPng.onclick = () => downloadBuffer(item.rawBuffer, `${item.name}.png`, 'image/png');
+                        btnPng.className = "px-2 py-0.8 rounded-xl bg-[#f8eeee] text-[#b86b7a] hover:bg-[#f5e1e3] text-[10px] font-bold transition flex items-center gap-1 shrink-0"; btnPng.innerHTML = `<i data-lucide="image" class="w-3 h-3"></i> 导出原卡PNG`; container.insertBefore(btnPng, container.firstChild);
+                    }
+                    const btnJson = document.createElement('button'); btnJson.onclick = () => downloadText(item.rawText || JSON.stringify(item.cardData, null, 2), `${item.name}.json`, 'application/json');
+                    btnJson.className = "px-2 py-0.8 rounded-xl bg-[#e8f8f0] text-[#5b8a7f] hover:bg-[#d8ebe5] text-[10px] font-bold transition flex items-center gap-1 shrink-0"; btnJson.innerHTML = `<i data-lucide="file-json" class="w-3 h-3"></i> 导出JSON`; container.insertBefore(btnJson, container.firstChild);
                 }
-                const btnJson = document.createElement('button'); btnJson.onclick = () => downloadText(item.rawText || JSON.stringify(item.cardData, null, 2), `${item.name}.json`, 'application/json');
-                btnJson.className = "px-2 py-0.8 rounded-xl bg-[#e8f0f8] text-[#688ca6] hover:bg-[#d8e4f2] text-[10px] font-bold transition flex items-center gap-1 shrink-0"; btnJson.innerHTML = `<i data-lucide="file-json" class="w-3 h-3"></i> 导出JSON`; container.insertBefore(btnJson, container.firstChild);
             }
             lucide.createIcons();
         }
@@ -2687,3 +2709,14 @@ function renderDocVersionSelectOptions() {
     });
 }
 window.renderDocVersionSelectOptions = renderDocVersionSelectOptions;
+
+
+function toggleGalleryPanel() {
+    const b = document.getElementById('galleryBody');
+    const c = document.getElementById('galleryChevron');
+    if (b) {
+        b.classList.toggle('hidden');
+        if (c) c.textContent = b.classList.contains('hidden') ? '⌄' : '⌃';
+    }
+}
+window.toggleGalleryPanel = toggleGalleryPanel;
