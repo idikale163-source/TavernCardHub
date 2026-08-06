@@ -1004,11 +1004,11 @@ window.saveGalleryUrl = saveGalleryUrl;
             
             if (currentTab === 'emojis') { 
                 builderPanel.classList.remove('hidden'); 
-                extrasPanel.classList.add('hidden');
+                if (extrasPanel) extrasPanel.classList.add('hidden');
                 if (galleryPanel) galleryPanel.classList.add('hidden');
             } else if (currentTab === 'regex') {
                 builderPanel.classList.add('hidden'); 
-                extrasPanel.classList.remove('hidden');
+                if (extrasPanel) extrasPanel.classList.add('hidden'); // 强制隐藏极细折叠手账卡片，保持与文本文档纯净一致
                 if (galleryPanel) galleryPanel.classList.add('hidden');
             } else if (currentTab === 'gallery') {
                 builderPanel.classList.add('hidden'); 
@@ -1181,7 +1181,7 @@ window.saveGalleryUrl = saveGalleryUrl;
                             📥 导入文件
                         </button>
                     `;
-                    if (currentTab === 'docs') {
+                    if (currentTab === 'docs' || currentTab === 'regex') {
                         importBtnHtml = `
                             <button onclick="toggleDocImportDrawer()" class="px-2.5 py-1.5 rounded-xl bg-[#fdf4f5] border border-[#f2dadc] text-[#b86b7a] text-xs font-bold hover:bg-[#f8eeee] transition flex items-center gap-1 shadow-2xs active:scale-95 shrink-0">
                                 ✏️ 粘贴文本草稿
@@ -2123,7 +2123,7 @@ window.batchMoveSelectedCategory = batchMoveSelectedCategory;
 
 function renderDocDrawerImportUI() {
     let container = document.getElementById('docDrawerContainer');
-    if (currentTab !== 'docs' || !currentFolderOpened) {
+    if ((currentTab !== 'docs' && currentTab !== 'regex') || !currentFolderOpened) {
         if (container) container.remove();
         return;
     }
