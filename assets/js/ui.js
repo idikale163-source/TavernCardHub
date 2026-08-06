@@ -2580,9 +2580,56 @@ window.toggleThemeBuilderPanel=toggleThemeBuilderPanel;
 
 // 全局智能直连导入器
 function triggerGlobalDirectImport() {
+    if (currentTab === 'links') {
+        const linkInput = document.getElementById('linkUrlInput');
+        if (linkInput) {
+            linkInput.focus();
+            linkInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        showToast('🔗', '请在上方粘贴框输入或粘贴网址链接');
+        return;
+    }
     if (currentTab === 'gallery') {
-        const g = document.getElementById('galleryFileInput');
-        if (g) { g.click(); return; }
+        let gInput = document.getElementById('galleryDirectFileInput');
+        if (!gInput) {
+            gInput = document.createElement('input');
+            gInput.type = 'file';
+            gInput.id = 'galleryDirectFileInput';
+            gInput.accept = 'image/png,image/jpeg,image/webp,image/gif';
+            gInput.multiple = true;
+            gInput.className = 'hidden';
+            document.body.appendChild(gInput);
+            gInput.onchange = async (e) => {
+                const files = Array.from(e.target.files || []);
+                if (!files.length) return;
+                try {
+                    showToast('⌛', `正在上传 ${files.length} 张图片...`);
+                    for (let i = 0; i < files.length; i++) {
+                        const file = files[i];
+                        const name = file.name.replace(/\.[^/.]+$/, '') || `图片_${Date.now()}`;
+                        await saveAsset({
+                            id: 'asset_' + Date.now() + '_' + i + '_' + Math.random().toString(36).slice(2, 7),
+                            category: 'gallery',
+                            name: name,
+                            fileType: file.type || 'image/png',
+                            cover: new Blob([file], { type: file.type || 'image/png' }),
+                            subCategory: currentFolderOpened || '',
+                            createdAt: Date.now() + i
+                        });
+                    }
+                    allAssetsCache = null;
+                    updateBadges();
+                    await renderItems();
+                    showToast('🎉', `成功上传 ${files.length} 张图片！`);
+                } catch(err) {
+                    showToast('❌', '图片上传失败');
+                } finally {
+                    e.target.value = '';
+                }
+            };
+        }
+        gInput.click();
+        return;
     }
     if (currentTab === 'themes') {
         const t = document.getElementById('themeFileInput');
@@ -2608,6 +2655,14 @@ function triggerGlobalDirectImport() {
                 await renderItems();
                 showToast('🎉', `成功存入当前分类！`);
             } catch(err) {
+                showToast('❌', '文件导入失败');
+            } finally {
+                e.target.value = '';
+            }
+        };
+    }
+    input.click();
+}
                 console.error(err);
                 showToast('❌', '导入失败：' + (err.message || err));
             } finally {
