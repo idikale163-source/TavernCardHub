@@ -327,6 +327,7 @@ async function processFile(file, targetCategory = currentTab) {
                 const blob = new Blob([item.rawBuffer], { type: item.fileType || 'image/png' });
                 return URL.createObjectURL(blob);
             }
+            if (item.url) return item.url;
             return item.cover || item.rawText || '';
         }
 
@@ -965,6 +966,7 @@ async function processFile(file, targetCategory = currentTab) {
                     category: 'gallery', 
                     name: nameText, 
                     fileType: 'img', 
+                    url: url,
                     rawText: url, 
                     subCategory: currentFolderOpened || '', 
                     createdAt: Date.now()
