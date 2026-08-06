@@ -222,7 +222,7 @@ async function processFile(file, targetCategory = currentTab) {
                 return;
             }
             if (ext==='png') {
-                if (category!=='cards') throw new Error('PNG 只能导入角色卡分类');
+                // PNG 允许导入任意分类
                 const raw=await file.arrayBuffer(); let cardData={}; const chunk=extractCharaChunk(raw);
                 if(chunk) { try { cardData=JSON.parse(chunk); } catch(e){} }
                 const d=cardData.data||cardData;
@@ -1046,7 +1046,7 @@ async function processFile(file, targetCategory = currentTab) {
 
             
             // Category/Folder First View (Except emojis and fonts)
-            if (['cards', 'worldbooks', 'docs', 'regex'].includes(currentTab) || isCustomCategoryTab(currentTab)) {
+            if (['cards', 'worldbooks', 'docs', 'regex', 'gallery', 'links'].includes(currentTab) || isCustomCategoryTab(currentTab)) {
                 if (!currentFolderOpened && !keyword) {
                     // Group by subCategory & Include empty custom folders
                     const folderCounts = {};
@@ -1081,7 +1081,7 @@ async function processFile(file, targetCategory = currentTab) {
                             <div class="w-8.5 h-8.5 rounded-full bg-[#fff0f3] text-[#e11d48] flex items-center justify-center mb-1 shadow-2xs">
                                 <i data-lucide="inbox" class="w-4 h-4 text-[#e11d48]"></i>
                             </div>
-                            <span class="font-bold text-xs text-[#e11d48]">${isCustomCategoryTab(currentTab) ? '📥 导入文件' : (currentTab === 'worldbooks' ? '📥 导入世界书' : (currentTab === 'docs' ? '📥 导入文档' : (currentTab === 'regex' ? '📥 导入正则/脚本' : '📥 导入角色卡')))}</span>
+                            <span class="font-bold text-xs text-[#e11d48]">${isCustomCategoryTab(currentTab) ? '📥 导入文件' : (currentTab === 'worldbooks' ? '📥 导入世界书' : (currentTab === 'docs' ? '📥 导入文档' : (currentTab === 'regex' ? '📥 导入正则/脚本' : (currentTab === 'gallery' ? '📥 上传图片' : (currentTab === 'links' ? '📥 新建网址' : '📥 导入角色卡')))))}</span>
                         </div>
                     `;
                     container.appendChild(addGrid);
@@ -1234,7 +1234,7 @@ async function processFile(file, targetCategory = currentTab) {
                             <img src="${imgUrl}" class="w-full h-full object-cover rounded-lg" onerror="this.src='https://placehold.co/300x400/fdf4f5/d88c9a?text=图片加载失败'">
                         </div>
                         <div>
-                            <h3 class="font-bold text-xs text-[#4a3e3d] text-center truncate px-0.5">${item.name}</h3>
+                            <h3 class="font-bold text-xs text-[#4a3e3d] text-center truncate px-0.5">${item.name}</h3>${item.tags && item.tags.length > 0 ? `<div class="flex items-center justify-center gap-1 flex-wrap pt-0.5">${item.tags.slice(0, 2).map(t => `<span class="text-[9px] px-1.5 py-0.2 rounded bg-[#f8eeee] text-[#b86b7a] font-medium">🏷️ ${t}</span>`).join('')}</div>` : ''}
                         </div>
                     `;
                 } else if (currentTab === 'emojis') {
@@ -1428,7 +1428,7 @@ async function processFile(file, targetCategory = currentTab) {
                 return;
             }
 
-            if (item.category === 'docs') { document.getElementById('secondaryPillsBar').classList.add('hidden'); switchDetailTab('doc-full'); document.getElementById('docFullContentText').innerText = item.rawText || '无内容'; return; }
+            if (item.category === 'docs') { document.getElementById('secondaryPillsBar').classList.add('hidden'); switchDetailTab('doc-full'); const textarea = document.getElementById('docFullContentTextarea'); if (textarea) textarea.value = item.rawText || ''; renderDocVersionSelectOptions(); return; }
             
             document.getElementById('secondaryPillsBar').classList.remove('hidden');
             let pText = item.personality || extractPersonalityDeep(item.cardData || {});
@@ -2541,3 +2541,82 @@ function promptCreateFolder() {
     }
 }
 window.promptCreateFolder = promptCreateFolder;
+
+
+async function convertCurrentAssetCategory(targetCat) {
+    if (!currentItem || !targetCat) return;
+    if (currentItem.category === targetCat) {
+        showToast('ℹ️', '当前资产已在该分类中');
+        return;
+    }
+    currentItem.category = targetCat;
+    delete currentItem.subCategory;
+    try {
+        await saveAsset(currentItem);
+        allAssetsCache = null;
+        updateBadges();
+        showToast('🎉', '已成功转换分类！');
+        closeDetailView();
+        switchTab(targetCat);
+    } catch(err) {
+        console.error(err);
+        showToast('❌', '分类转换失败');
+    }
+}
+window.convertCurrentAssetCategory = convertCurrentAssetCategory;
+
+function switchDocVersion(verValue) {
+    if (!currentItem) return;
+    const textarea = document.getElementById('docFullContentTextarea');
+    if (!textarea) return;
+    if (verValue === 'current') {
+        textarea.value = currentItem.rawText || '';
+    } else {
+        const versions = currentItem.historyVersions || [];
+        const found = versions.find(v => String(v.version) === String(verValue));
+        if (found) textarea.value = found.content || '';
+    }
+}
+window.switchDocVersion = switchDocVersion;
+
+async function saveDocContent(isNewVersion) {
+    if (!currentItem) return;
+    const textarea = document.getElementById('docFullContentTextarea');
+    if (!textarea) return;
+    const newText = textarea.value;
+    if (isNewVersion) {
+        currentItem.historyVersions = currentItem.historyVersions || [];
+        const newVerNum = currentItem.historyVersions.length + 2;
+        currentItem.historyVersions.push({ version: newVerNum, content: newText, createdAt: Date.now() });
+        currentItem.rawText = newText;
+        try {
+            await saveAsset(currentItem);
+            allAssetsCache = null;
+            renderDocVersionSelectOptions();
+            showToast('✨', '已保存为新版本！');
+        } catch(e) { showToast('❌', '保存新版本失败'); }
+    } else {
+        currentItem.rawText = newText;
+        try {
+            await saveAsset(currentItem);
+            allAssetsCache = null;
+            showToast('💾', '已覆盖保存当前版本！');
+        } catch(e) { showToast('❌', '覆盖保存失败'); }
+    }
+}
+window.saveDocContent = saveDocContent;
+
+function renderDocVersionSelectOptions() {
+    if (!currentItem) return;
+    const sel = document.getElementById('docVersionSelect');
+    if (!sel) return;
+    sel.innerHTML = '<option value="current">当前版本 (最新)</option>';
+    const versions = currentItem.historyVersions || [];
+    versions.forEach(v => {
+        const opt = document.createElement('option');
+        opt.value = v.version;
+        opt.innerText = '历史版本 V' + v.version;
+        sel.appendChild(opt);
+    });
+}
+window.renderDocVersionSelectOptions = renderDocVersionSelectOptions;
