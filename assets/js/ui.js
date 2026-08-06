@@ -1005,19 +1005,25 @@ window.saveGalleryUrl = saveGalleryUrl;
             if (currentTab === 'emojis') { 
                 builderPanel.classList.remove('hidden'); 
                 extrasPanel.classList.add('hidden');
-                galleryPanel.classList.add('hidden');
+                if (galleryPanel) galleryPanel.classList.add('hidden');
             } else if (currentTab === 'regex') {
                 builderPanel.classList.add('hidden'); 
                 extrasPanel.classList.remove('hidden');
-                galleryPanel.classList.add('hidden');
+                if (galleryPanel) galleryPanel.classList.add('hidden');
             } else if (currentTab === 'gallery') {
                 builderPanel.classList.add('hidden'); 
                 extrasPanel.classList.add('hidden');
-                galleryPanel.classList.remove('hidden');
+                if (galleryPanel) {
+                    if (currentFolderOpened) {
+                        galleryPanel.classList.add('hidden');
+                    } else {
+                        galleryPanel.classList.remove('hidden');
+                    }
+                }
             } else { 
                 builderPanel.classList.add('hidden'); 
                 extrasPanel.classList.add('hidden');
-                galleryPanel.classList.add('hidden');
+                if (galleryPanel) galleryPanel.classList.add('hidden');
             }
 
             const filtered = assets.filter(a => {
