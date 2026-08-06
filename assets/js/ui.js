@@ -1178,10 +1178,19 @@ window.saveGalleryUrl = saveGalleryUrl;
                     
                     let importBtnHtml = `
                         <button onclick="triggerGlobalDirectImport()" class="px-3 py-1.5 rounded-xl bg-[#fff0f3] border border-[#f2dadc] text-[#e11d48] text-xs font-bold hover:bg-[#ffe4e6] transition flex items-center gap-1 shadow-2xs active:scale-95 shrink-0">
-                            📥 导入/上传
+                            📥 导入文件
                         </button>
                     `;
-                    if (currentTab === 'gallery') {
+                    if (currentTab === 'docs') {
+                        importBtnHtml = `
+                            <button onclick="toggleDocImportDrawer()" class="px-2.5 py-1.5 rounded-xl bg-[#fdf4f5] border border-[#f2dadc] text-[#b86b7a] text-xs font-bold hover:bg-[#f8eeee] transition flex items-center gap-1 shadow-2xs active:scale-95 shrink-0">
+                                ✏️ 粘贴文本草稿
+                            </button>
+                            <button onclick="triggerGlobalDirectImport()" class="px-2.5 py-1.5 rounded-xl bg-[#fff0f3] border border-[#f2dadc] text-[#e11d48] text-xs font-bold hover:bg-[#ffe4e6] transition flex items-center gap-1 shadow-2xs active:scale-95 shrink-0">
+                                📥 导入 DOCX/TXT
+                            </button>
+                        `;
+                    } else if (currentTab === 'gallery') {
                         importBtnHtml = `
                             <button onclick="triggerGalleryLinkInputPrompt()" class="px-2.5 py-1.5 rounded-xl bg-[#fdf4f5] border border-[#f2dadc] text-[#b86b7a] text-xs font-bold hover:bg-[#f8eeee] transition flex items-center gap-1 shadow-2xs active:scale-95 shrink-0">
                                 🔗 粘贴图片直链
