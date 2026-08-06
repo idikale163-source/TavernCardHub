@@ -1189,15 +1189,14 @@ window.saveGalleryUrl = saveGalleryUrl;
                         </button>
                     `;
 if (currentTab === 'docs' || currentTab === 'regex') {
-                         rightButtonsHtml = `
-                             <button onclick="triggerDocPasteModalPrompt()" class="px-2.5 py-1.5 rounded-xl bg-[#fdf4f5] border border-[#f2dadc] text-[#b86b7a] text-xs font-bold hover:bg-[#f8eeee] transition flex items-center gap-1 shadow-2xs active:scale-95 shrink-0">
-                                 ✏️ 粘贴草稿
-                             </button>
-                             <button onclick="triggerGlobalDirectImport()" class="px-2.5 py-1.5 rounded-xl bg-[#fff0f3] border border-[#f2dadc] text-[#e11d48] text-xs font-bold hover:bg-[#ffe4e6] transition flex items-center gap-1 shadow-2xs active:scale-95 shrink-0">
-                                 ${importBtnText}
-                             </button>
-                         `;
-                     }
+                        rightButtonsHtml = `
+                            <button onclick="triggerDocPasteModalPrompt()" class="px-2.5 py-1.5 rounded-xl bg-[#fdf4f5] border border-[#f2dadc] text-[#b86b7a] text-xs font-bold hover:bg-[#f8eeee] transition flex items-center gap-1 shadow-2xs active:scale-95 shrink-0">
+                                ✏️ 粘贴草稿
+                            </button>
+                            <button onclick="triggerGlobalDirectImport()" class="px-2.5 py-1.5 rounded-xl bg-[#fff0f3] border border-[#f2dadc] text-[#e11d48] text-xs font-bold hover:bg-[#ffe4e6] transition flex items-center gap-1 shadow-2xs active:scale-95 shrink-0">
+                                ${importBtnText}
+                            </button>
+                        `;
                     } else if (currentTab === 'gallery') {
                         rightButtonsHtml = `
                             <button onclick="triggerGalleryLinkInputPrompt()" class="px-2.5 py-1.5 rounded-xl bg-[#fdf4f5] border border-[#f2dadc] text-[#b86b7a] text-xs font-bold hover:bg-[#f8eeee] transition flex items-center gap-1 shadow-2xs active:scale-95 shrink-0">
@@ -1323,7 +1322,6 @@ if (currentTab === 'docs' || currentTab === 'regex') {
                 container.appendChild(card);
             });
 
-            renderDocDrawerImportUI();
             lucide.createIcons();
         }
 
