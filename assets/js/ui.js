@@ -1190,34 +1190,34 @@ window.saveGalleryUrl = saveGalleryUrl;
                     `;
 if (currentTab === 'docs' || currentTab === 'regex') {
                         rightButtonsHtml = `
-                            <button onclick="triggerDocPasteModalPrompt()" class="px-2.5 py-1.5 rounded-xl bg-[#fdf4f5] border border-[#f2dadc] text-[#b86b7a] text-xs font-bold hover:bg-[#f8eeee] transition flex items-center gap-1 shadow-2xs active:scale-95 shrink-0">
+                            <button onclick="triggerDocPasteModalPrompt()" class="px-2 py-1.5 rounded-xl bg-[#fdf4f5] border border-[#f2dadc] text-[#b86b7a] text-[11px] font-bold hover:bg-[#f8eeee] transition flex items-center gap-0.5 shadow-2xs active:scale-95 shrink-0 whitespace-nowrap">
                                 ✏️ 粘贴草稿
                             </button>
-                            <button onclick="triggerGlobalDirectImport()" class="px-2.5 py-1.5 rounded-xl bg-[#fff0f3] border border-[#f2dadc] text-[#e11d48] text-xs font-bold hover:bg-[#ffe4e6] transition flex items-center gap-1 shadow-2xs active:scale-95 shrink-0">
+                            <button onclick="triggerGlobalDirectImport()" class="px-2 py-1.5 rounded-xl bg-[#fff0f3] border border-[#f2dadc] text-[#e11d48] text-[11px] font-bold hover:bg-[#ffe4e6] transition flex items-center gap-0.5 shadow-2xs active:scale-95 shrink-0 whitespace-nowrap">
                                 ${importBtnText}
                             </button>
                         `;
                     } else if (currentTab === 'gallery') {
                         rightButtonsHtml = `
-                            <button onclick="triggerGalleryLinkInputPrompt()" class="px-2.5 py-1.5 rounded-xl bg-[#fdf4f5] border border-[#f2dadc] text-[#b86b7a] text-xs font-bold hover:bg-[#f8eeee] transition flex items-center gap-1 shadow-2xs active:scale-95 shrink-0">
+                            <button onclick="triggerGalleryLinkInputPrompt()" class="px-2 py-1.5 rounded-xl bg-[#fdf4f5] border border-[#f2dadc] text-[#b86b7a] text-[11px] font-bold hover:bg-[#f8eeee] transition flex items-center gap-0.5 shadow-2xs active:scale-95 shrink-0 whitespace-nowrap">
                                 🔗 粘贴直链
                             </button>
-                            <button onclick="triggerGlobalDirectImport()" class="px-2.5 py-1.5 rounded-xl bg-[#fff0f3] border border-[#f2dadc] text-[#e11d48] text-xs font-bold hover:bg-[#ffe4e6] transition flex items-center gap-1 shadow-2xs active:scale-95 shrink-0">
+                            <button onclick="triggerGlobalDirectImport()" class="px-2 py-1.5 rounded-xl bg-[#fff0f3] border border-[#f2dadc] text-[#e11d48] text-[11px] font-bold hover:bg-[#ffe4e6] transition flex items-center gap-0.5 shadow-2xs active:scale-95 shrink-0 whitespace-nowrap">
                                 📥 上传图片
                             </button>
                         `;
                     }
 
                     breadcrumb.innerHTML = `
-                        <div class="flex items-center gap-1.5 min-w-0 flex-1">
-                            <button onclick="exitFolderView()" class="px-2.5 py-1.5 rounded-xl bg-[#d88c9a] text-white text-xs font-bold hover:bg-[#c97b8b] transition flex items-center gap-0.5 shrink-0 shadow-2xs active:scale-95">
-                                <i data-lucide="chevron-left" class="w-4 h-4"></i> 返回
+                        <div class="flex items-center gap-1 min-w-0 shrink">
+                            <button onclick="exitFolderView()" class="px-2 py-1 rounded-xl bg-[#d88c9a] text-white text-[11px] font-bold hover:bg-[#c97b8b] transition flex items-center gap-0.5 shrink-0 shadow-2xs active:scale-95">
+                                <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i> 返回
                             </button>
-                            <span class="text-xs font-extrabold text-[#4a3e3d] truncate">📂 ${currentFolderOpened}</span>
+                            <span class="text-[11px] font-extrabold text-[#4a3e3d] truncate hidden sm:inline-block">📂 ${currentFolderOpened}</span>
                         </div>
-                        <div class="flex items-center gap-1.5 shrink-0">
+                        <div class="flex items-center gap-1.5 shrink-0 ml-auto">
                             ${rightButtonsHtml}
-                            <button onclick="promptBatchMoveToFolder()" class="text-[11px] text-[#b86b7a] hover:underline font-semibold shrink-0 ml-0.5">+ 移动</button>
+                            <button onclick="promptBatchMoveToFolder()" class="text-[10px] text-[#b86b7a] hover:underline font-semibold shrink-0 ml-0.5 whitespace-nowrap">+移动</button>
                         </div>
                     `;
                     container.appendChild(breadcrumb);
