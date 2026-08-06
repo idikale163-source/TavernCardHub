@@ -1077,26 +1077,18 @@ window.saveGalleryUrl = saveGalleryUrl;
                         folderCounts[fName] = (folderCounts[fName] || 0) + 1;
                     });
 
-                    // Add Create Folder Cards (并排小尺寸卡片按钮)
-                    if (currentTab !== 'links') {
-                        const addGrid = document.createElement('div');
-                        addGrid.className = "col-span-full grid grid-cols-2 gap-3.5 mb-3";
-                        addGrid.innerHTML = `
-                            <div onclick="promptCreateFolder()" class="p-3.5 rounded-[22px] bg-white/80 backdrop-blur-md border border-white/70 flex flex-col items-center justify-center cursor-pointer hover:border-[#d88c9a] transition active:scale-[0.98] shadow-2xs min-h-[90px]">
-                                <div class="w-8.5 h-8.5 rounded-full bg-[#f8eeee] text-[#d88c9a] flex items-center justify-center mb-1 shadow-2xs">
-                                    <i data-lucide="folder-plus" class="w-4 h-4"></i>
-                                </div>
-                                <span class="font-bold text-xs text-[#b86b7a]">+ 创建新分类</span>
+                    // Add Create Folder Cards (只保留一个“+ 创建新分类”单卡片)
+                    const addGrid = document.createElement('div');
+                    addGrid.className = "col-span-full mb-3";
+                    addGrid.innerHTML = `
+                        <div onclick="promptCreateFolder()" class="w-full p-3 rounded-[22px] bg-white/80 backdrop-blur-md border border-white/70 flex items-center justify-center gap-2 cursor-pointer hover:border-[#d88c9a] transition active:scale-[0.98] shadow-2xs min-h-[50px]">
+                            <div class="w-7 h-7 rounded-full bg-[#f8eeee] text-[#d88c9a] flex items-center justify-center shadow-2xs">
+                                <i data-lucide="folder-plus" class="w-4 h-4"></i>
                             </div>
-                            <div onclick="triggerGlobalDirectImport()" class="p-3.5 rounded-[22px] bg-white/80 backdrop-blur-md border border-white/70 flex flex-col items-center justify-center cursor-pointer hover:border-[#d88c9a] transition active:scale-[0.98] shadow-2xs min-h-[90px]">
-                                <div class="w-8.5 h-8.5 rounded-full bg-[#fff0f3] text-[#e11d48] flex items-center justify-center mb-1 shadow-2xs">
-                                    <i data-lucide="inbox" class="w-4 h-4 text-[#e11d48]"></i>
-                                </div>
-                                <span class="font-bold text-xs text-[#e11d48]">${isCustomCategoryTab(currentTab) ? '📥 导入文件' : (currentTab === 'worldbooks' ? '📥 导入世界书' : (currentTab === 'docs' ? '📥 导入文档' : (currentTab === 'regex' ? '📥 导入番外/小剧场' : (currentTab === 'gallery' ? '📥 上传图片' : '📥 导入角色卡'))))}</span>
-                            </div>
-                        `;
-                        container.appendChild(addGrid);
-                    }
+                            <span class="font-bold text-xs text-[#b86b7a]">+ 创建新分类</span>
+                        </div>
+                    `;
+                    container.appendChild(addGrid);
 
                     // Render Folder Cards (竖版, 1排2列，支持长按整体删除)
                     const sortedFolders = Object.keys(folderCounts).sort((a, b) => {
