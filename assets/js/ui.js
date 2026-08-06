@@ -2105,75 +2105,11 @@ window.batchMoveSelectedCategory = batchMoveSelectedCategory;
 
 function renderDocDrawerImportUI() {
     let container = document.getElementById('docDrawerContainer');
-    if ((currentTab !== 'docs' && currentTab !== 'regex') || !currentFolderOpened) {
-        if (container) container.remove();
-        return;
-    }
-
-    const itemsContainer = document.getElementById('itemsContainer');
-    if (!itemsContainer) return;
-
-    if (!container) {
-        container = document.createElement('div');
-        container.id = 'docDrawerContainer';
-        container.className = 'my-2 bg-white rounded-2xl border border-[#f2e3e3] p-2.5 shadow-2xs space-y-2 col-span-full';
-    }
-
-    // 确保把草稿框容器 append 到 itemsContainer 的最末尾（即所有文件/文件夹节点的下方，绝对不会在顶部或胶囊上方！）
-    itemsContainer.appendChild(container);
-
-    const bodyWasOpen = document.getElementById('docImportDrawerBody') ? !document.getElementById('docImportDrawerBody').classList.contains('hidden') : false;
-
-    if (!bodyWasOpen) {
-        container.classList.add('hidden');
-    } else {
-        container.classList.remove('hidden');
-    }
-
-    container.innerHTML = `
-        <div class="flex items-center justify-between">
-            <span class="text-xs font-bold text-[#4a3e3d] flex items-center gap-1.5">
-                <span>📄</span> 粘贴长文本草稿框
-            </span>
-            <button onclick="toggleDocImportDrawer(false)" class="text-[11px] font-bold text-[#a38b8d] hover:text-[#d88c9a]">
-                ✕ 关闭
-            </button>
-        </div>
-
-        <div id="docImportDrawerBody" class="${bodyWasOpen ? '' : 'hidden'} pt-2 border-t border-[#f7ecee] space-y-2">
-            <div>
-                <label class="block text-[10px] font-semibold text-[#8c7476] mb-0.5">文档标题</label>
-                <input id="docImportTitleInput" type="text" placeholder="例: 小说角色大纲 / 章节草稿" class="w-full bg-[#faf6f0] border border-[#f2e3e3] rounded-lg px-2.5 py-1.5 text-xs text-[#4a3e3d] focus:outline-none focus:border-[#d88c9a]">
-            </div>
-            <div>
-                <label class="block text-[10px] font-semibold text-[#8c7476] mb-0.5">粘贴文档内容</label>
-                <textarea id="docImportTextContent" placeholder="在此直接粘贴剪贴板复制的长篇文本..." class="w-full h-28 bg-[#faf6f0] border border-[#f2e3e3] rounded-lg p-2.5 text-xs font-mono text-[#4a3e3d] focus:outline-none focus:border-[#d88c9a] custom-scrollbar resize-none"></textarea>
-            </div>
-            <div class="flex justify-end gap-2 pt-1">
-                <button onclick="toggleDocImportDrawer(false)" class="px-3 py-1 rounded-full border border-gray-300 text-gray-600 text-[11px]">取消</button>
-                <button onclick="submitSavePastedDoc()" class="px-4 py-1 rounded-full bg-[#d88c9a] text-white text-[11px] font-bold hover:bg-[#c97b8b] transition shadow-sm">保存文档</button>
-            </div>
-        </div>
-    `;
-    container.classList.remove('hidden');
+    if (container) container.remove();
 }
 
 function toggleDocImportDrawer(show = null) {
-    const container = document.getElementById('docDrawerContainer');
-    const body = document.getElementById('docImportDrawerBody');
-    if (!container || !body) return;
-    if (show === null) {
-        body.classList.toggle('hidden');
-    } else if (show) {
-        body.classList.remove('hidden');
-    } else {
-        body.classList.add('hidden');
-    }
-    if (body.classList.contains('hidden')) {
-        container.classList.add('hidden');
-    } else {
-        container.classList.remove('hidden');
-    }
+    // 兼容原有的代码逻辑为空函数，避免之前旧代码调用报错。
 }
 
 async function submitSavePastedDoc() {
