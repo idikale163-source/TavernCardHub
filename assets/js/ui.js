@@ -2194,11 +2194,12 @@ async function submitSavePastedDoc() {
     const assetId = 'asset_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
 
     try {
-        showToast('⌛', '正在保存文档...');
+        showToast('⌛', '正在保存...');
+        const saveCategory = (currentTab === 'regex') ? 'regex' : 'docs';
         await saveAsset({
             id: assetId,
-            category: 'docs',
-            name: docName.endsWith('.txt') ? docName : `${docName}.txt`,
+            category: saveCategory,
+            name: docName,
             fileType: 'txt',
             rawText: content,
             subCategory: currentFolderOpened || '',
@@ -2212,10 +2213,10 @@ async function submitSavePastedDoc() {
         allAssetsCache = null;
         updateBadges();
         await renderItems();
-        showToast('🎉', `文档 “${docName}” 已成功存入！`);
-    } catch(err) {
-        console.error('Failed to save pasted doc', err);
-        showToast('❌', '保存文档失败');
+        showToast('🎉', saveCategory === 'regex' ? '已保存至当前番外/小剧场文件夹！' : '已保存至当前文本文档文件夹！');
+    } catch (e) {
+        console.error(e);
+        showToast('❌', '保存失败');
     }
 }
 
