@@ -433,33 +433,32 @@
                     <button onclick="testAllApiKeys()" class="px-3.5 py-1.5 bg-white border border-[#f2dadc] text-[#784d52] text-xs font-bold rounded-lg hover:bg-[#fdf4f5] transition">🔌 全部测试</button>
                 </div>
                 <div id="apikeyList" class="space-y-2.5 pt-1"></div>
-            </div>
-            <div id="galleryBuilderPanel" class="hidden mb-4 ui-card p-4 space-y-3 border-[#f2dadc] bg-[#fdf6f7]">
-                <div class="flex items-center justify-between border-b border-[#f5e1e3] pb-2 flex-wrap gap-2">
-                    <div class="flex items-center gap-2"><i data-lucide="image" class="w-4 h-4 text-[#d88c9a]"></i><span class="text-xs font-bold text-[#784d52]">图库相册</span></div>
-                    <div class="text-[11px] text-[#b86b7a] font-medium">本地图片先预览，再保存</div>
-                </div>
-                <div class="bg-white border border-[#f2e3e3] rounded-xl p-3 space-y-2.5">
+            <div id="galleryBuilderPanel" class="hidden mb-4 ui-card border border-[#f2dadc] bg-white/80 backdrop-blur-md rounded-2xl overflow-hidden shadow-2xs">
+                <button type="button" onclick="toggleGalleryPanel()" class="w-full px-3.5 py-2.5 flex items-center justify-between bg-[#fdf4f5]/60 hover:bg-[#fdf4f5] transition text-left cursor-pointer">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="image" class="w-4 h-4 text-[#d88c9a]"></i>
+                        <span class="text-xs font-extrabold text-[#784d52]">🖼️ 导入网络图片直链</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <span id="galleryChevron" class="text-[#d88c9a] text-xs font-bold transition-transform duration-200">⌄</span>
+                    </div>
+                </button>
+                <div id="galleryBody" class="hidden p-3 border-t border-[#f5e1e3] space-y-2.5 bg-white/50">
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
                         <div class="md:col-span-1">
                             <label class="block text-[11px] font-bold text-[#784d52] mb-1">图片名称/描述:</label>
                             <input type="text" id="galleryTitleInput" placeholder="例如：美图#1、设子立绘..." class="w-full bg-[#faf6f0] border border-[#f2e3e3] rounded-lg px-2.5 py-1.5 text-xs text-[#5c494a] focus:outline-none focus:border-[#d88c9a] font-medium">
                         </div>
                         <div class="md:col-span-2">
-                            <label class="block text-[11px] font-bold text-[#784d52] mb-1">网络图片链接:</label>
+                            <label class="block text-[11px] font-bold text-[#784d52] mb-1">网络图片直链:</label>
                             <div class="flex items-center gap-2">
                                 <input type="text" id="galleryUrlInput" placeholder="粘贴 https://... 图片直链" class="flex-1 bg-[#faf6f0] border border-[#f2e3e3] rounded-lg px-2.5 py-1.5 text-xs font-mono text-[#5c494a] focus:outline-none focus:border-[#d88c9a]">
-                                <button type="button" id="galleryUrlSaveBtn" class="px-3 py-1.5 rounded-lg bg-[#f8eeee] text-[#b86b7a] text-xs font-bold shrink-0">保存链接</button>
+                                <button type="button" id="galleryUrlSaveBtn" class="px-3.5 py-1.5 rounded-lg bg-[#d88c9a] hover:bg-[#c97b8b] text-white text-xs font-bold shrink-0 transition shadow-2xs">保存链接</button>
                             </div>
                         </div>
                     </div>
-                    <div class="flex items-center gap-2 pt-1">
-                        <button type="button" id="galleryUploadBtn" class="px-3 py-1.5 rounded-lg bg-[#d88c9a] text-white text-xs font-bold shrink-0">选择本地图片</button>
-                        <input type="file" id="galleryFileInput" accept="image/png,image/jpeg,image/webp,image/gif" multiple class="opacity-0 absolute w-px h-px pointer-events-none" style="left:-9999px;">
-                        <button type="button" id="galleryLocalSaveBtn" onclick="saveLocalGalleryPictures()" class="px-3 py-1.5 rounded-lg bg-[#d88c9a] text-white text-xs font-bold shrink-0">保存本地图片</button>
-                    </div>
-                    <div id="galleryPreview" class="hidden grid grid-cols-4 gap-2 pt-1"></div>
                 </div>
+            </div>
             </div>
             
             <!-- Custom Panel for Beauty & Theme Import -->
