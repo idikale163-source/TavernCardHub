@@ -1354,6 +1354,7 @@ window.saveGalleryUrl = saveGalleryUrl;
                 document.getElementById('secondaryPillsBar').classList.add('hidden');
                 switchDetailTab('worldbook');
                 selectedWbEntryIndexes.clear();
+                renderOverviewTags();
                 renderWorldbookEntries();
                 return;
             }
@@ -1507,6 +1508,7 @@ window.saveGalleryUrl = saveGalleryUrl;
                 switchDetailTab('doc-full');
                 const textarea = document.getElementById('docFullContentTextarea');
                 if (textarea) textarea.value = item.rawText || '无文档/DOCX文本内容';
+                renderOverviewTags();
                 renderDocVersionSelectOptions();
                 return;
             }
