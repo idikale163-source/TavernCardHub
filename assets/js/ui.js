@@ -1171,65 +1171,53 @@ window.saveGalleryUrl = saveGalleryUrl;
                     filtered.length = 0;
                     folderItems.forEach(fi => filtered.push(fi));
 
-                    // Breadcrumb Header (最左上角极简粉色胶囊 + 文件夹内部导入按钮)
+                    // Breadcrumb Header (单排紧凑模式：左侧返回+文件夹名，右侧直接显示“📥 导入”按钮)
                     const breadcrumb = document.createElement('div');
-                    breadcrumb.className = "col-span-full flex flex-col gap-2 bg-white/80 backdrop-blur-md border border-white/60 rounded-2xl p-2.5 mb-2.5 shadow-2xs";
+                    breadcrumb.className = "col-span-full flex items-center justify-between bg-white/80 backdrop-blur-md border border-white/60 rounded-2xl p-2.5 mb-2.5 shadow-2xs gap-2";
                     
-                    let importBtnHtml = `
+                    let importBtnText = '📥 导入文件';
+                    if (currentTab === 'cards') importBtnText = '📥 导入角色卡';
+                    else if (currentTab === 'worldbooks') importBtnText = '📥 导入世界书';
+                    else if (currentTab === 'docs') importBtnText = '📥 导入文档';
+                    else if (currentTab === 'regex') importBtnText = '📥 导入番外/小剧场';
+                    else if (currentTab === 'emojis') importBtnText = '📥 导入表情包';
+
+                    let rightButtonsHtml = `
                         <button onclick="triggerGlobalDirectImport()" class="px-3 py-1.5 rounded-xl bg-[#fff0f3] border border-[#f2dadc] text-[#e11d48] text-xs font-bold hover:bg-[#ffe4e6] transition flex items-center gap-1 shadow-2xs active:scale-95 shrink-0">
-                            📥 导入文件
+                            ${importBtnText}
                         </button>
                     `;
+
                     if (currentTab === 'docs' || currentTab === 'regex') {
-                        importBtnHtml = `
+                        rightButtonsHtml = `
                             <button onclick="toggleDocImportDrawer()" class="px-2.5 py-1.5 rounded-xl bg-[#fdf4f5] border border-[#f2dadc] text-[#b86b7a] text-xs font-bold hover:bg-[#f8eeee] transition flex items-center gap-1 shadow-2xs active:scale-95 shrink-0">
-                                ✏️ 粘贴文本草稿
+                                ✏️ 粘贴草稿
                             </button>
                             <button onclick="triggerGlobalDirectImport()" class="px-2.5 py-1.5 rounded-xl bg-[#fff0f3] border border-[#f2dadc] text-[#e11d48] text-xs font-bold hover:bg-[#ffe4e6] transition flex items-center gap-1 shadow-2xs active:scale-95 shrink-0">
-                                📥 导入 DOCX/TXT
-                            </button>
-                        `;
-                    } else if (currentTab === 'cards') {
-                        importBtnHtml = `
-                            <button onclick="triggerGlobalDirectImport()" class="px-2.5 py-1.5 rounded-xl bg-[#fff0f3] border border-[#f2dadc] text-[#e11d48] text-xs font-bold hover:bg-[#ffe4e6] transition flex items-center gap-1 shadow-2xs active:scale-95 shrink-0">
-                                📥 导入角色卡
-                            </button>
-                        `;
-                    } else if (currentTab === 'worldbooks') {
-                        importBtnHtml = `
-                            <button onclick="triggerGlobalDirectImport()" class="px-2.5 py-1.5 rounded-xl bg-[#fff0f3] border border-[#f2dadc] text-[#e11d48] text-xs font-bold hover:bg-[#ffe4e6] transition flex items-center gap-1 shadow-2xs active:scale-95 shrink-0">
-                                📥 导入世界书
-                            </button>
-                        `;
-                    } else if (currentTab === 'emojis') {
-                        importBtnHtml = `
-                            <button onclick="triggerGlobalDirectImport()" class="px-2.5 py-1.5 rounded-xl bg-[#fff0f3] border border-[#f2dadc] text-[#e11d48] text-xs font-bold hover:bg-[#ffe4e6] transition flex items-center gap-1 shadow-2xs active:scale-95 shrink-0">
-                                📥 导入表情包
+                                ${importBtnText}
                             </button>
                         `;
                     } else if (currentTab === 'gallery') {
-                        importBtnHtml = `
+                        rightButtonsHtml = `
                             <button onclick="triggerGalleryLinkInputPrompt()" class="px-2.5 py-1.5 rounded-xl bg-[#fdf4f5] border border-[#f2dadc] text-[#b86b7a] text-xs font-bold hover:bg-[#f8eeee] transition flex items-center gap-1 shadow-2xs active:scale-95 shrink-0">
-                                🔗 粘贴图片直链
+                                🔗 粘贴直链
                             </button>
                             <button onclick="triggerGlobalDirectImport()" class="px-2.5 py-1.5 rounded-xl bg-[#fff0f3] border border-[#f2dadc] text-[#e11d48] text-xs font-bold hover:bg-[#ffe4e6] transition flex items-center gap-1 shadow-2xs active:scale-95 shrink-0">
-                                📥 上传本地图
+                                📥 上传图片
                             </button>
                         `;
                     }
 
                     breadcrumb.innerHTML = `
-                        <div class="flex items-center justify-between gap-2 w-full">
-                            <div class="flex items-center gap-2 min-w-0 flex-1">
-                                <button onclick="exitFolderView()" class="px-3 py-1.5 rounded-xl bg-[#d88c9a] text-white text-xs font-bold hover:bg-[#c97b8b] transition flex items-center gap-1 shrink-0 shadow-2xs active:scale-95">
-                                    <i data-lucide="chevron-left" class="w-4 h-4"></i> 返回
-                                </button>
-                                <span class="text-xs font-extrabold text-[#4a3e3d] truncate">📂 ${currentFolderOpened}</span>
-                            </div>
-                            <button onclick="promptBatchMoveToFolder()" class="text-[11px] text-[#b86b7a] hover:underline font-semibold shrink-0">+ 移动选中</button>
+                        <div class="flex items-center gap-1.5 min-w-0 flex-1">
+                            <button onclick="exitFolderView()" class="px-2.5 py-1.5 rounded-xl bg-[#d88c9a] text-white text-xs font-bold hover:bg-[#c97b8b] transition flex items-center gap-0.5 shrink-0 shadow-2xs active:scale-95">
+                                <i data-lucide="chevron-left" class="w-4 h-4"></i> 返回
+                            </button>
+                            <span class="text-xs font-extrabold text-[#4a3e3d] truncate">📂 ${currentFolderOpened}</span>
                         </div>
-                        <div class="flex items-center gap-2 overflow-x-auto pt-1 border-t border-[#f5e1e3]/60 custom-scrollbar">
-                            ${importBtnHtml}
+                        <div class="flex items-center gap-1.5 shrink-0">
+                            ${rightButtonsHtml}
+                            <button onclick="promptBatchMoveToFolder()" class="text-[11px] text-[#b86b7a] hover:underline font-semibold shrink-0 ml-0.5">+ 移动</button>
                         </div>
                     `;
                     container.appendChild(breadcrumb);
