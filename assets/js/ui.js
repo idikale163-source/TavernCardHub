@@ -1224,106 +1224,13 @@ window.saveGalleryUrl = saveGalleryUrl;
                 }
             }
 
-            // 在分类导航栏渲染完成后，如果是在文档分类子文件夹下且粘贴抽屉被打开，则把它插入到列表最上方
-            renderDocDrawerImportUI();
-
-            filtered.forEach(item => {
-                const card = document.createElement('div');
-                const isSelected = selectedAssetIds.has(item.id);
-                
-                card.setAttribute('data-asset-id', item.id);
-                card.className = `ui-card p-3 flex flex-col justify-between cursor-pointer hover:border-[#d88c9a] transition active:scale-[0.99] relative group ${isSelected ? 'ring-2 ring-[#d88c9a] bg-[#fdf6f7]' : ''}`;
-                
-                // 绑定长按事件
-                bindLongPressEvent(card, item.id);
-
-                card.onclick = (e) => {
-                    if (isMultiSelectMode) {
-                        toggleSelectAsset(item.id, e);
-                    } else if (currentTab === 'links' || item.category === 'links') {
-                        openLinkDetailModal(item);
-                    } else {
-                        openDetailView(item);
-                    }
-                };
-
-                if (currentTab === 'links') {
-                    const linkUrl = item.url || item.rawText || '#';
-                    card.className = "ui-card col-span-full w-full p-4 flex flex-col gap-3 hover:border-[#60a5fa] transition relative group bg-white/75 rounded-2xl border border-white/80 shadow-sm backdrop-blur-md";
-                    card.innerHTML = `
-                        <div class="flex items-center justify-between gap-3">
-                            <div class="flex items-center gap-3 min-w-0">
-                                <div class="w-10 h-10 rounded-2xl bg-[#e0f2fe]/80 border border-[#93c5fd] flex items-center justify-center shrink-0">
-                                    <i data-lucide="link" class="w-4 h-4 text-[#2563eb]"></i>
-                                </div>
-                                <div class="truncate">
-                                    <h3 class="font-bold text-sm text-[#172554] truncate">${item.name}</h3>
-                                    <span class="text-[11px] text-[#64748b] font-mono block truncate mt-0.5">${linkUrl}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="flex flex-wrap items-center gap-2 pt-1 border-t border-[#dbeafe]">
-                            <button onclick="openLinkInDefaultBrowser('${linkUrl}')" class="flex-1 min-w-[150px] py-2 rounded-xl bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-bold text-[11px] transition shadow-xs flex items-center justify-center gap-1">
-                                🚀 默认浏览器打开
-                            </button>
-                            <button onclick="navigator.clipboard.writeText('${linkUrl}'); showToast('📋', '链接已复制！');" class="px-3 py-2 rounded-xl bg-[#eff6ff] text-[#475569] hover:bg-[#e2e8f0] text-[11px] font-bold transition">
-                                📋 复制
-                            </button>
-                            <button onclick="deleteSingleAsset('${item.id}', event)" class="px-3 py-2 rounded-xl bg-[#fff1f2] text-[#ef4444] hover:bg-[#fee2e2] text-[11px] font-bold transition">
-                                🗑️
-                            </button>
-                        </div>
-                    `;
-                } else if (currentTab === 'gallery') {
-                    const imgUrl = getAssetImageUrl(item);
-                    card.className = `ui-card p-2 flex flex-col justify-between cursor-pointer hover:border-[#d88c9a] transition active:scale-[0.99] relative group ${isSelected ? 'ring-2 ring-[#d88c9a] bg-[#fdf6f7]' : ''}`;
-                    card.innerHTML = `
-                        <div class="aspect-square rounded-lg overflow-hidden bg-[#fdf4f5] mb-1 border border-[#f5e1e3] flex items-center justify-center p-0.5 relative">
-                            <img src="${imgUrl}" class="w-full h-full object-cover rounded-lg" onerror="this.src='https://placehold.co/300x400/fdf4f5/d88c9a?text=图片加载失败'">
-                        </div>
-                        <div>
-                            <h3 class="font-bold text-xs text-[#4a3e3d] text-center truncate px-0.5">${item.name}</h3>${item.tags && item.tags.length > 0 ? `<div class="flex items-center justify-center gap-1 flex-wrap pt-0.5">${item.tags.slice(0, 2).map(t => `<span class="text-[9px] px-1.5 py-0.2 rounded bg-[#f8eeee] text-[#b86b7a] font-medium">🏷️ ${t}</span>`).join('')}</div>` : ''}
-                        </div>
-                    `;
-                } else if (currentTab === 'emojis') {
-                    const count = item.emojiList ? item.emojiList.length : 0;
-                    const previewCover = item.emojiList && item.emojiList[0] ? item.emojiList[0].url : '';
-                    const isChecked = selectedEmojiPackIdsInList.has(item.id);
-
-                    card.innerHTML = `
-                        <div class="absolute top-2 left-2 z-10">
-                            <input type="checkbox" ${isChecked ? 'checked' : ''} onclick="toggleEmojiPackInListSelection('${item.id}', event)" class="w-4 h-4 text-[#d88c9a] rounded border-[#f2e3e3] cursor-pointer">
-                        </div>
-                        <div>
-                            <div class="h-28 rounded-xl bg-[#fdf4f5] mb-2 border border-[#f5e1e3] flex items-center justify-center overflow-hidden p-1">
-                                ${previewCover ? `<img src="${previewCover}" class="max-w-full max-h-full object-contain" onerror="this.src='https://placehold.co/150x150/fdf4f5/d88c9a?text=表情合集'">` : `<i data-lucide="smile" class="w-8 h-8 text-[#d88c9a]"></i>`}
-                            </div>
-                            <h3 class="font-bold text-sm text-[#4a3e3d] text-center truncate py-0.5">${item.name}</h3>
-                            <p class="text-[10px] text-[#b86b7a] font-semibold text-center">包含 ${count} 个表情图片</p>
-                        </div>
-                    `;
-                } else {
-                    let coverHtml = '';
-                    if (item.rawBuffer && item.fileType === 'png') {
-                        const blob = new Blob([item.rawBuffer], { type: 'image/png' }), url = URL.createObjectURL(blob);
-                        coverHtml = `<div class="aspect-square rounded-lg overflow-hidden bg-slate-100 mb-1 border border-slate-100"><img src="${url}" class="w-full h-full object-cover"></div>`;
-                    } else {
-                        coverHtml = `<div class="h-20 rounded-lg bg-[#fdf4f5] mb-1 flex items-center justify-center text-[#d88c9a]"><i data-lucide="${item.fileType === 'docx' || item.fileType === 'txt' ? 'file-text' : 'user'}" class="w-6 h-6"></i></div>`;
-                    }
-                    card.innerHTML = `<div>${coverHtml}<h3 class="font-bold text-sm text-[#4a3e3d] text-center truncate py-1">${item.name}</h3>${item.tags && item.tags.length > 0 ? `<div class="flex items-center justify-center gap-1 flex-wrap pt-0.5">${item.tags.slice(0, 3).map(t => `<span class="text-[9px] px-1.5 py-0.2 rounded bg-[#f8eeee] text-[#b86b7a] font-medium">🏷️ ${t}</span>`).join('')}${item.tags.length > 3 ? `<span class="text-[9px] text-[#a38b8d]">+${item.tags.length - 3}</span>` : ''}</div>` : ''}</div>`;
-                }
-                // 如果处于批量多选模式，在卡片右上角统一注入精致勾选红点圆框
-                if (isMultiSelectMode) {
-                    const checkBadge = document.createElement('div');
-                    checkBadge.className = `selection-badge absolute top-2 right-2 z-30 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shadow-md transition ${isSelected ? 'bg-[#d88c9a] text-white scale-110' : 'bg-white/90 border border-gray-300 text-transparent'}`;
-                    checkBadge.innerHTML = '✓';
-                    checkBadge.onclick = (e) => toggleSelectAsset(item.id, e);
-                    card.appendChild(checkBadge);
-                }
-
                 container.appendChild(card);
             });
+
+            // 遍历渲染完所有卡片文件后，再调用 renderDocDrawerImportUI，这样草稿框才会真正排在最下面！
+            renderDocDrawerImportUI();
+            lucide.createIcons();
+        }
             lucide.createIcons();
         }
 
@@ -2111,21 +2018,17 @@ function renderDocDrawerImportUI() {
         return;
     }
 
+    const itemsContainer = document.getElementById('itemsContainer');
+    if (!itemsContainer) return;
+
     if (!container) {
         container = document.createElement('div');
         container.id = 'docDrawerContainer';
         container.className = 'my-2 bg-white rounded-2xl border border-[#f2e3e3] p-2.5 shadow-2xs space-y-2 col-span-full';
-        
-        const itemsContainer = document.getElementById('itemsContainer');
-        if (itemsContainer) {
-            const breadcrumbNode = itemsContainer.querySelector('.col-span-full');
-            if (breadcrumbNode && breadcrumbNode.nextSibling) {
-                itemsContainer.insertBefore(container, breadcrumbNode.nextSibling);
-            } else {
-                itemsContainer.insertBefore(container, itemsContainer.firstChild);
-            }
-        }
     }
+
+    // 确保把草稿框容器 append 到 itemsContainer 的最末尾（即所有文件/文件夹节点的下方，绝对不会在顶部或胶囊上方！）
+    itemsContainer.appendChild(container);
 
     const bodyWasOpen = document.getElementById('docImportDrawerBody') ? !document.getElementById('docImportDrawerBody').classList.contains('hidden') : false;
 
