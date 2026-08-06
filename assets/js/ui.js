@@ -915,6 +915,8 @@ async function processFile(file, targetCategory = currentTab) {
                 showToast('⚠️', '请先选择本地图片'); 
                 return; 
             }
+window.saveLocalGalleryPictures = saveLocalGalleryPictures;
+
 
             isGallerySaving = true;
             try {
@@ -954,6 +956,8 @@ async function processFile(file, targetCategory = currentTab) {
             const titleInput = document.getElementById('galleryTitleInput');
             const url = urlInput?.value.trim() || '';
             if (!/^https?:\/\//i.test(url)) { showToast('⚠️', '请填写有效的图片链接'); return; }
+window.saveGalleryUrl = saveGalleryUrl;
+
             
             isGalleryUrlSaving = true;
             try {
