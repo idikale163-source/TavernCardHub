@@ -1081,7 +1081,7 @@ async function processFile(file, targetCategory = currentTab) {
                             <div class="w-8.5 h-8.5 rounded-full bg-[#fff0f3] text-[#e11d48] flex items-center justify-center mb-1 shadow-2xs">
                                 <i data-lucide="inbox" class="w-4 h-4 text-[#e11d48]"></i>
                             </div>
-                            <span class="font-bold text-xs text-[#e11d48]">${isCustomCategoryTab(currentTab) ? '📥 导入文件' : (currentTab === 'worldbooks' ? '📥 导入世界书' : (currentTab === 'docs' ? '📥 导入文档' : (currentTab === 'regex' ? '📥 导入正则/脚本' : (currentTab === 'gallery' ? '📥 上传图片' : (currentTab === 'links' ? '📥 新建网址' : '📥 导入角色卡')))))}</span>
+                            <span class="font-bold text-xs text-[#e11d48]">${isCustomCategoryTab(currentTab) ? '📥 导入文件' : (currentTab === 'worldbooks' ? '📥 导入世界书' : (currentTab === 'docs' ? '📥 导入文档' : (currentTab === 'regex' ? '📥 导入番外/小剧场' : (currentTab === 'gallery' ? '📥 上传图片' : (currentTab === 'links' ? '📥 新建网址' : '📥 导入角色卡')))))}</span>
                         </div>
                     `;
                     container.appendChild(addGrid);
