@@ -2755,32 +2755,117 @@ function renderDocVersionSelectOptions() {
 window.renderDocVersionSelectOptions = renderDocVersionSelectOptions;
 
 
-async function triggerDocPasteModalPrompt() {
-    const defaultName = (currentTab === 'regex' ? '番外_' : '文档_') + new Date().toLocaleDateString().replace(/\//g, '');
-    const title = prompt('请输入标题/备注：', defaultName) || defaultName;
-    const content = prompt('请粘贴或输入长篇文本内容：');
-    
-    if (!content || !content.trim()) return;
+async function triggerGalleryLinkInputPrompt() {
+    const url = prompt('请输入或粘贴图片网络直链 (以 https:// 开头)：');
+    if (!url || !url.trim()) return;
+    const cleanUrl = url.trim();
+    if (!/^https?:\/\//i.test(cleanUrl)) {
+        showToast('⚠️', '请输入有效的 https:// 图片直链！');
+        return;
+    }
+    const defaultName = '图片_' + new Date().toLocaleDateString().replace(/\//g, '');
+    const title = prompt('请输入图片名称/备注：', defaultName) || defaultName;
 
     try {
-        showToast('⌛', '正在保存草稿...');
-        const saveCategory = (currentTab === 'regex') ? 'regex' : 'docs';
+        showToast('⌛', '正在保存网络图片直链...');
         await saveAsset({
             id: 'asset_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
-            category: saveCategory,
+            category: 'gallery',
             name: title.trim(),
-            fileType: 'txt',
-            rawText: content.trim(),
+            fileType: 'img',
+            url: cleanUrl,
+            rawText: cleanUrl,
             subCategory: currentFolderOpened || '',
             createdAt: Date.now()
         });
         allAssetsCache = null;
         updateBadges();
         await renderItems();
-        showToast('🎉', saveCategory === 'regex' ? '番外/小剧场文本已保存！' : '文本文档已保存！');
+        showToast('🎉', '网络图片直链保存成功！');
     } catch(e) {
         console.error(e);
-        showToast('❌', '保存文本失败');
+        showToast('❌', '保存图片直链失败');
     }
+}
+window.triggerGalleryLinkInputPrompt = triggerGalleryLinkInputPrompt;
+
+async function triggerDocPasteModalPrompt() {
+    const defaultName = (currentTab === 'regex' ? '番外_' : '文档_') + new Date().toLocaleDateString().replace(/\//g, '');
+    
+    // 注入自定义美化的对话框（模态框）来代替原生的丑陋 prompt
+    const modalHtml = `
+        <div id="customPasteModal" class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+            <div class="bg-white/90 backdrop-blur-md border border-white/60 w-[85%] max-w-[320px] rounded-3xl p-5 shadow-2xl flex flex-col gap-3.5 transform transition-all scale-100">
+                <div class="flex items-center gap-2 mb-1">
+                    <div class="w-8 h-8 rounded-full bg-[#fdf4f5] text-[#d88c9a] flex items-center justify-center shadow-inner">
+                        <i data-lucide="clipboard-paste" class="w-4 h-4"></i>
+                    </div>
+                    <h3 class="font-extrabold text-[#4a3e3d] text-[15px]">粘贴长篇内容</h3>
+                </div>
+                
+                <div class="space-y-1">
+                    <label class="text-[10px] font-bold text-[#8c7476] ml-1">标题 / 备注</label>
+                    <input type="text" id="customPasteTitle" value="${defaultName}" class="w-full bg-[#faf6f0] border border-[#f2e3e3] rounded-xl px-3 py-2 text-xs text-[#4a3e3d] font-bold focus:outline-none focus:border-[#d88c9a] focus:ring-1 focus:ring-[#d88c9a]/30 transition shadow-inner">
+                </div>
+
+                <div class="space-y-1">
+                    <label class="text-[10px] font-bold text-[#8c7476] ml-1">长文本正文内容</label>
+                    <textarea id="customPasteContent" placeholder="在此长按粘贴剪贴板的长篇文本..." class="w-full h-32 bg-[#faf6f0] border border-[#f2e3e3] rounded-xl p-3 text-xs font-mono text-[#4a3e3d] focus:outline-none focus:border-[#d88c9a] focus:ring-1 focus:ring-[#d88c9a]/30 transition shadow-inner custom-scrollbar resize-none"></textarea>
+                </div>
+
+                <div class="flex gap-2.5 mt-2">
+                    <button onclick="document.getElementById('customPasteModal').remove()" class="flex-1 py-2.5 rounded-xl bg-[#f5e8e8] text-[#8c7173] font-bold text-xs hover:bg-[#eedbdb] transition active:scale-95 shadow-sm">
+                        取消
+                    </button>
+                    <button id="customPasteConfirmBtn" class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-[#d88c9a] to-[#c97b8b] text-white font-bold text-xs hover:opacity-90 transition active:scale-95 shadow-md">
+                        确定保存
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    const oldModal = document.getElementById('customPasteModal');
+    if (oldModal) oldModal.remove();
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    lucide.createIcons();
+
+    const titleInput = document.getElementById('customPasteTitle');
+    const contentInput = document.getElementById('customPasteContent');
+    contentInput.focus();
+
+    document.getElementById('customPasteConfirmBtn').onclick = async () => {
+        const title = titleInput.value.trim() || defaultName;
+        const content = contentInput.value.trim();
+        
+        if (!content) {
+            showToast('⚠️', '请粘贴或输入文本内容！');
+            contentInput.focus();
+            return;
+        }
+
+        document.getElementById('customPasteModal').remove();
+
+        try {
+            showToast('⌛', '正在保存草稿...');
+            const saveCategory = (currentTab === 'regex') ? 'regex' : 'docs';
+            await saveAsset({
+                id: 'asset_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+                category: saveCategory,
+                name: title,
+                fileType: 'txt',
+                rawText: content,
+                subCategory: currentFolderOpened || '',
+                createdAt: Date.now()
+            });
+            allAssetsCache = null;
+            updateBadges();
+            await renderItems();
+            showToast('🎉', saveCategory === 'regex' ? '番外/小剧场文本已保存！' : '文本文档已保存！');
+        } catch(e) {
+            console.error(e);
+            showToast('❌', '保存文本失败');
+        }
+    };
 }
 window.triggerDocPasteModalPrompt = triggerDocPasteModalPrompt;
