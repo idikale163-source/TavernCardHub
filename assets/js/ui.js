@@ -1180,7 +1180,7 @@ window.saveGalleryUrl = saveGalleryUrl;
                     if (currentTab === 'cards') importBtnText = '📥 导入角色卡';
                     else if (currentTab === 'worldbooks') importBtnText = '📥 导入世界书';
                     else if (currentTab === 'docs') importBtnText = '📥 导入文档';
-                    else if (currentTab === 'regex') importBtnText = '📥 导入番外/小剧场';
+                    else if (currentTab === 'regex') importBtnText = '📥 导入';
                     else if (currentTab === 'emojis') importBtnText = '📥 导入表情包';
 
                     let rightButtonsHtml = `
