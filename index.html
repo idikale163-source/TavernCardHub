@@ -572,9 +572,14 @@
                         <input id="linkUrlInput" type="url" placeholder="粘贴 https://... 网址" class="w-full bg-white border border-[#bfdbfe] rounded-lg px-3 py-2 text-xs font-mono text-[#1e3a8a]">
                     </div>
                     <div class="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-2">
-                        <input id="linkCategoryInput" type="text" placeholder="分类（可选）" class="w-full bg-white border border-[#bfdbfe] rounded-lg px-3 py-2 text-xs text-[#1e3a8a]">
-                        <button type="button" onclick="saveNewLinkAsset()" class="px-4 py-2 rounded-xl bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-xs font-bold">＋保存链接</button>
-                        <button type="button" onclick="pasteLinkFromClipboard()" class="px-4 py-2 rounded-xl bg-[#eff6ff] text-[#2563eb] text-xs font-bold">📋 粘贴</button>
+                        <div class="flex items-center gap-1.5">
+                            <input id="linkCategoryInput" type="text" placeholder="分类（可选或下方选择）" class="w-full bg-white border border-[#bfdbfe] rounded-lg px-3 py-2 text-xs text-[#1e3a8a]">
+                            <select id="linkCategorySelect" onchange="if(this.value){ document.getElementById('linkCategoryInput').value = this.value; }" class="bg-white border border-[#bfdbfe] rounded-lg px-2 py-2 text-xs text-[#1e3a8a] outline-none shrink-0 font-semibold">
+                                <option value="">一键选择已有分类...</option>
+                            </select>
+                        </div>
+                        <button type="button" onclick="saveNewLinkAsset()" class="px-4 py-2 rounded-xl bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-xs font-bold shadow-xs active:scale-95 transition">＋保存链接</button>
+                        <button type="button" onclick="pasteLinkFromClipboard()" class="px-4 py-2 rounded-xl bg-[#eff6ff] text-[#2563eb] text-xs font-bold hover:bg-[#dbeafe] transition">📋 粘贴</button>
                     </div>
                 </div>
             </div>
