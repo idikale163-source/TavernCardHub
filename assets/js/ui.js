@@ -988,7 +988,6 @@ window.saveGalleryUrl = saveGalleryUrl;
             }
         }
         async function renderItems() {
-    renderDocDrawerImportUI();
             const assets = await getAllAssets(), keyword = document.getElementById('searchInput').value.toLowerCase().trim(), container = document.getElementById('itemsContainer');
             container.innerHTML = '';
 
