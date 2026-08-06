@@ -755,7 +755,7 @@ async function processFile(file, targetCategory = currentTab) {
 
         function tokTrim(t) { return String(t).trim(); }
 
-        function promptAddCustomTag() {
+        async function promptAddCustomTag() {
             if (!currentItem) return;
             const newTag = prompt('请输入新标签名字：');
             if (newTag && newTag.trim()) {
@@ -763,7 +763,7 @@ async function processFile(file, targetCategory = currentTab) {
                 currentItem.tags = currentItem.tags || [];
                 if (!currentItem.tags.includes(tagStr)) {
                     currentItem.tags.push(tagStr);
-                    saveAsset(currentItem);
+                    await saveAsset(currentItem);
                     renderOverviewTags();
                     renderTagFilterBar();
                     showToast('🏷️', `已成功添加标签 “${tagStr}”`);
@@ -1266,6 +1266,9 @@ if (currentTab === 'docs' || currentTab === 'regex') {
                             </button>
                             <button onclick="navigator.clipboard.writeText('${linkUrl}'); showToast('📋', '链接已复制！');" class="px-3 py-2 rounded-xl bg-[#eff6ff] text-[#475569] hover:bg-[#e2e8f0] text-[11px] font-bold transition">
                                 📋 复制
+                            </button>
+                            <button onclick="event.stopPropagation(); currentItem = item; promptAddCustomTag();" class="px-3 py-2 rounded-xl bg-[#fdf4f5] text-[#b86b7a] hover:bg-[#f8eeee] text-[11px] font-bold transition">
+                                🏷️ 标签
                             </button>
                             <button onclick="deleteSingleAsset('${item.id}', event)" class="px-3 py-2 rounded-xl bg-[#fff1f2] text-[#ef4444] hover:bg-[#fee2e2] text-[11px] font-bold transition">
                                 🗑️
