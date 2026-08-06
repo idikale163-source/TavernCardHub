@@ -1053,8 +1053,8 @@ window.saveGalleryUrl = saveGalleryUrl;
                 return nameMatch || tagMatch || textMatch || personalityMatch || wbMatch;
             });
             // document.getElementById('itemCountText').innerText
-            // 如果是在子文件夹内部且为空，提示暂无资产
-            if (filtered.length === 0 && (currentFolderOpened || keyword || currentTab === 'emojis' || currentTab === 'fonts')) { 
+            // 如果是在子文件夹内部且为空，允许渲染顶部的面包屑导航与导入按钮
+            if (filtered.length === 0 && !currentFolderOpened && (keyword || currentTab === 'emojis' || currentTab === 'fonts')) { 
                 container.innerHTML = `<div class="col-span-full py-20 text-center text-[#b89b9d]"><i data-lucide="inbox" class="w-10 h-10 mx-auto mb-2 opacity-30"></i><p class="text-xs">暂无资产</p></div>`; 
                 lucide.createIcons(); 
                 return; 
