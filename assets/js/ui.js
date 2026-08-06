@@ -213,34 +213,35 @@ async function processFile(file, targetCategory = currentTab) {
             const ext=file.name.split('.').pop().toLowerCase();
             const id='asset_'+Date.now()+'_'+Math.random().toString(36).slice(2,11);
             const category=categoryStorageKey(targetCategory);
+            const folder=currentFolderOpened || '';
             if (isCustomCategoryTab(category)) {
                 const raw=await file.arrayBuffer();
                 let preview='';
                 const textExts=['txt','css','json','html','htm','js','ts','xml','md','yaml','yml','csv','ini','log'];
                 if (textExts.includes(ext)) { try { preview=await file.text(); } catch(e) { preview=''; } }
-                await saveAsset({id, category, name:file.name, fileType:ext || 'bin', rawBuffer:raw, byteSize:raw.byteLength, rawText:preview, createdAt:Date.now()});
+                await saveAsset({id, category, subCategory:folder, name:file.name, fileType:ext || 'bin', rawBuffer:raw, byteSize:raw.byteLength, rawText:preview, createdAt:Date.now()});
                 return;
             }
             if (ext==='png' || ext==='jpg' || ext==='jpeg' || ext==='webp' || ext==='gif') {
                 const raw=await file.arrayBuffer(); 
                 if (category==='gallery') {
-                    await saveAsset({id, category:'gallery', name:cleanImportName(file.name), fileType:ext, rawBuffer:raw, createdAt:Date.now()});
+                    await saveAsset({id, category:'gallery', subCategory:folder, name:cleanImportName(file.name), fileType:ext, rawBuffer:raw, createdAt:Date.now()});
                     return;
                 }
                 let cardData={}; const chunk=extractCharaChunk(raw);
                 if(chunk) { try { cardData=JSON.parse(chunk); } catch(e){} }
                 const d=cardData.data||cardData;
-                await saveAsset({id,category:'cards',name:d.name||cleanImportName(file.name),fileType:ext,rawBuffer:raw,cardData,tags:extractTagsFromData(d),firstMes:d.first_mes||'',alternateGreetings:d.alternate_greetings||[],personality:extractPersonalityDeep(cardData),worldbook:d.character_book||null,regexScripts:d.extensions?.regex_scripts||null,rawText:JSON.stringify(cardData,null,2),createdAt:Date.now()});
+                await saveAsset({id,category:'cards',subCategory:folder,name:d.name||cleanImportName(file.name),fileType:ext,rawBuffer:raw,cardData,tags:extractTagsFromData(d),firstMes:d.first_mes||'',alternateGreetings:d.alternate_greetings||[],personality:extractPersonalityDeep(cardData),worldbook:d.character_book||null,regexScripts:d.extensions?.regex_scripts||null,rawText:JSON.stringify(cardData,null,2),createdAt:Date.now()});
                 return;
             }
             if (ext==='json') {
                 const text=await file.text(); let json={}; try { json=JSON.parse(text); } catch(e){}
                 if (category==='cards') {
-                    const d=json.data||json; await saveAsset({id,category:'cards',name:d.name||cleanImportName(file.name),fileType:'json',cardData:json,tags:extractTagsFromData(d),rawText:text,personality:extractPersonalityDeep(json),worldbook:d.character_book||null,createdAt:Date.now()});
+                    const d=json.data||json; await saveAsset({id,category:'cards',subCategory:folder,name:d.name||cleanImportName(file.name),fileType:'json',cardData:json,tags:extractTagsFromData(d),rawText:text,personality:extractPersonalityDeep(json),worldbook:d.character_book||null,createdAt:Date.now()});
                 } else if (category==='worldbooks') {
-                    await saveAsset({id,category:'worldbooks',name:json.name||cleanImportName(file.name),fileType:'json',cardData:json,worldbook:json,rawText:text,createdAt:Date.now()});
+                    await saveAsset({id,category:'worldbooks',subCategory:folder,name:json.name||cleanImportName(file.name),fileType:'json',cardData:json,worldbook:json,rawText:text,createdAt:Date.now()});
                 } else {
-                    await saveAsset({id,category,name:cleanImportName(file.name),fileType:'json',cardData:json,rawText:text,createdAt:Date.now()});
+                    await saveAsset({id,category,subCategory:folder,name:cleanImportName(file.name),fileType:'json',cardData:json,rawText:text,createdAt:Date.now()});
                 }
                 return;
             }
@@ -248,18 +249,18 @@ async function processFile(file, targetCategory = currentTab) {
                 const text=await file.text();
                 if (category==='emojis') {
                     const parsed=parseEmojiTextLines(text); if(!parsed.length) throw new Error('没有识别到表情链接');
-                    await saveAsset({id,category:'emojis',name:cleanImportName(file.name),fileType:'json',emojiList:parsed,rawText:text,createdAt:Date.now()});
+                    await saveAsset({id,category:'emojis',subCategory:folder,name:cleanImportName(file.name),fileType:'json',emojiList:parsed,rawText:text,createdAt:Date.now()});
                 } else {
-                    await saveAsset({id,category,name:cleanImportName(file.name),fileType:ext,rawText:text,createdAt:Date.now()});
+                    await saveAsset({id,category,subCategory:folder,name:cleanImportName(file.name),fileType:ext,rawText:text,createdAt:Date.now()});
                 }
                 return;
             }
             if (ext==='docx') {
                 const raw=await file.arrayBuffer(); const result=await mammoth.extractRawText({arrayBuffer:raw});
-                await saveAsset({id,category,name:cleanImportName(file.name),fileType:'docx',rawText:result.value,rawBuffer:raw,createdAt:Date.now()}); return;
+                await saveAsset({id,category,subCategory:folder,name:cleanImportName(file.name),fileType:'docx',rawText:result.value,rawBuffer:raw,createdAt:Date.now()}); return;
             }
             if (ext==='zip') {
-                const raw=await file.arrayBuffer(); await saveAsset({id,category,name:cleanImportName(file.name),fileType:'zip',rawBuffer:raw,createdAt:Date.now()}); return;
+                const raw=await file.arrayBuffer(); await saveAsset({id,category,subCategory:folder,name:cleanImportName(file.name),fileType:'zip',rawBuffer:raw,createdAt:Date.now()}); return;
             }
             throw new Error('不支持的文件格式');
         }
