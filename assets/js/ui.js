@@ -221,12 +221,16 @@ async function processFile(file, targetCategory = currentTab) {
                 await saveAsset({id, category, name:file.name, fileType:ext || 'bin', rawBuffer:raw, byteSize:raw.byteLength, rawText:preview, createdAt:Date.now()});
                 return;
             }
-            if (ext==='png') {
-                // PNG 允许导入任意分类
-                const raw=await file.arrayBuffer(); let cardData={}; const chunk=extractCharaChunk(raw);
+            if (ext==='png' || ext==='jpg' || ext==='jpeg' || ext==='webp' || ext==='gif') {
+                const raw=await file.arrayBuffer(); 
+                if (category==='gallery') {
+                    await saveAsset({id, category:'gallery', name:cleanImportName(file.name), fileType:ext, rawBuffer:raw, createdAt:Date.now()});
+                    return;
+                }
+                let cardData={}; const chunk=extractCharaChunk(raw);
                 if(chunk) { try { cardData=JSON.parse(chunk); } catch(e){} }
                 const d=cardData.data||cardData;
-                await saveAsset({id,category:'cards',name:d.name||cleanImportName(file.name),fileType:'png',rawBuffer:raw,cardData,tags:extractTagsFromData(d),firstMes:d.first_mes||'',alternateGreetings:d.alternate_greetings||[],personality:extractPersonalityDeep(cardData),worldbook:d.character_book||null,regexScripts:d.extensions?.regex_scripts||null,rawText:JSON.stringify(cardData,null,2),createdAt:Date.now()});
+                await saveAsset({id,category:'cards',name:d.name||cleanImportName(file.name),fileType:ext,rawBuffer:raw,cardData,tags:extractTagsFromData(d),firstMes:d.first_mes||'',alternateGreetings:d.alternate_greetings||[],personality:extractPersonalityDeep(cardData),worldbook:d.character_book||null,regexScripts:d.extensions?.regex_scripts||null,rawText:JSON.stringify(cardData,null,2),createdAt:Date.now()});
                 return;
             }
             if (ext==='json') {
@@ -1452,9 +1456,10 @@ async function processFile(file, targetCategory = currentTab) {
                 return;
             }
 
-            // 如果卡片格式是 docx 或 txt 文本类型（非 JSON/PNG 深度角色卡），直接切换到文档全文模式，不显示人设世界书等 Tab
+            // 如果卡片格式是 docx 或 txt 文本类型（或者非 JSON/PNG 深度解析的角色卡），直接切换到文档全文模式，不显示人设世界书等 Tab
             const ext = (item.fileType || '').toLowerCase();
-            if (ext === 'docx' || ext === 'doc' || (item.category === 'cards' && ext === 'txt' && !item.cardData)) {
+            const isDeepCard = item.cardData && (item.cardData.data || item.cardData.name || item.cardData.spec);
+            if (ext === 'docx' || ext === 'doc' || ext === 'txt' || !isDeepCard) {
                 document.getElementById('secondaryPillsBar').classList.add('hidden');
                 switchDetailTab('doc-full');
                 const textarea = document.getElementById('docFullContentTextarea');
@@ -1592,7 +1597,8 @@ async function processFile(file, targetCategory = currentTab) {
 
             if (item.category === 'cards') {
                 const ext = (item.fileType || '').toLowerCase();
-                if (ext === 'docx' || ext === 'doc' || ext === 'txt') {
+                const isDeepCard = item.cardData && (item.cardData.data || item.cardData.name || item.cardData.spec);
+                if (ext === 'docx' || ext === 'doc' || ext === 'txt' || !isDeepCard) {
                     const btnTxt = document.createElement('button'); btnTxt.onclick = () => downloadText(item.rawText || '', `${item.name}.txt`, 'text/plain');
                     btnTxt.className = "px-2 py-0.8 rounded-xl bg-[#fdf4f5] text-[#b86b7a] hover:bg-[#f8eeee] text-[10px] font-bold transition flex items-center gap-1 border border-[#f5e1e3] shrink-0"; btnTxt.innerHTML = `<i data-lucide="file-text" class="w-3 h-3"></i> 导出TXT`; container.insertBefore(btnTxt, container.firstChild);
 
