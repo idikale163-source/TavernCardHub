@@ -789,7 +789,37 @@
                                 <i data-lucide="copy" class="w-3.5 h-3.5"></i> 复制全文
                             </button>
                         </div>
-                        <div id="docFullContentText" class="text-xs text-[#5c494a] leading-relaxed whitespace-pre-wrap font-sans max-h-[70vh] overflow-y-auto custom-scrollbar pt-2">无文档内容</div>
+                        <div class="flex flex-wrap items-center justify-between gap-2 bg-[#fdf4f5] p-2.5 rounded-xl border border-[#f2dadc] my-2">
+                            <div class="flex items-center gap-1.5">
+                                <span class="text-xs font-bold text-[#b86b7a]">📌 版本:</span>
+                                <select id="docVersionSelect" onchange="switchDocVersion(this.value)" class="text-xs bg-white border border-[#f2dadc] text-[#b86b7a] font-bold rounded-lg px-2 py-1 outline-none shadow-2xs">
+                                    <option value="current">当前版本 (最新)</option>
+                                </select>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <span class="text-xs font-bold text-[#b86b7a]">🔄 转分类:</span>
+                                <select onchange="convertCurrentAssetCategory(this.value)" class="text-xs bg-white border border-[#f2dadc] text-[#4a3e3d] font-bold rounded-lg px-2 py-1 outline-none shadow-2xs">
+                                    <option value="">选择目标分类...</option>
+                                    <option value="cards">转为 角色卡 (Cards)</option>
+                                    <option value="worldbooks">转为 世界书 (Worldbooks)</option>
+                                    <option value="regex">转为 正则/脚本 (Regex)</option>
+                                    <option value="docs">转为 文档 (Docs)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="space-y-2.5 pt-1">
+                            <textarea id="docFullContentTextarea" class="w-full h-72 p-3 text-xs text-[#4a3e3d] bg-[#fdf8f8] border border-[#f2dadc] rounded-xl focus:outline-none focus:border-[#d88c9a] font-sans leading-relaxed resize-y shadow-2xs" placeholder="在这里编辑或撰写文档内容..."></textarea>
+                            
+                            <div class="flex items-center justify-end gap-2 pt-1">
+                                <button onclick="saveDocContent(false)" class="px-3.5 py-1.5 rounded-xl bg-[#fdf4f5] border border-[#f2dadc] text-[#b86b7a] hover:bg-[#f2dadc] font-bold text-xs transition active:scale-95 shadow-2xs">
+                                    💾 覆盖当前版
+                                </button>
+                                <button onclick="saveDocContent(true)" class="px-3.5 py-1.5 rounded-xl bg-[#d88c9a] text-white hover:bg-[#c97b8b] font-bold text-xs transition active:scale-95 shadow-2xs">
+                                    ✨ 保存为第二版/新版本
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
