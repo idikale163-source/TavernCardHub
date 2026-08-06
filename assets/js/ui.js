@@ -1061,8 +1061,8 @@ window.saveGalleryUrl = saveGalleryUrl;
             }
 
             
-            // Category/Folder First View (Except emojis and fonts)
-            if (['cards', 'worldbooks', 'docs', 'regex', 'gallery', 'links'].includes(currentTab) || isCustomCategoryTab(currentTab)) {
+            // Category/Folder First View (Except fonts)
+            if (['cards', 'worldbooks', 'docs', 'regex', 'gallery', 'links', 'emojis'].includes(currentTab) || isCustomCategoryTab(currentTab)) {
                 if (!currentFolderOpened && !keyword) {
                     // Group by subCategory & Include empty custom folders
                     const folderCounts = {};
@@ -1190,6 +1190,30 @@ window.saveGalleryUrl = saveGalleryUrl;
                                 📥 导入 DOCX/TXT
                             </button>
                         `;
+                    } else if (currentTab === 'cards') {
+                        importBtnHtml = `
+                            <button onclick="triggerGlobalDirectImport()" class="px-2.5 py-1.5 rounded-xl bg-[#fff0f3] border border-[#f2dadc] text-[#e11d48] text-xs font-bold hover:bg-[#ffe4e6] transition flex items-center gap-1 shadow-2xs active:scale-95 shrink-0">
+                                📥 导入角色卡
+                            </button>
+                        `;
+                    } else if (currentTab === 'worldbooks') {
+                        importBtnHtml = `
+                            <button onclick="triggerGlobalDirectImport()" class="px-2.5 py-1.5 rounded-xl bg-[#fff0f3] border border-[#f2dadc] text-[#e11d48] text-xs font-bold hover:bg-[#ffe4e6] transition flex items-center gap-1 shadow-2xs active:scale-95 shrink-0">
+                                📥 导入世界书
+                            </button>
+                        `;
+                    } else if (currentTab === 'regex') {
+                        importBtnHtml = `
+                            <button onclick="triggerGlobalDirectImport()" class="px-2.5 py-1.5 rounded-xl bg-[#fff0f3] border border-[#f2dadc] text-[#e11d48] text-xs font-bold hover:bg-[#ffe4e6] transition flex items-center gap-1 shadow-2xs active:scale-95 shrink-0">
+                                📥 导入番外/小剧场
+                            </button>
+                        `;
+                    } else if (currentTab === 'emojis') {
+                        importBtnHtml = `
+                            <button onclick="triggerGlobalDirectImport()" class="px-2.5 py-1.5 rounded-xl bg-[#fff0f3] border border-[#f2dadc] text-[#e11d48] text-xs font-bold hover:bg-[#ffe4e6] transition flex items-center gap-1 shadow-2xs active:scale-95 shrink-0">
+                                📥 导入表情包
+                            </button>
+                        `;
                     } else if (currentTab === 'gallery') {
                         importBtnHtml = `
                             <button onclick="triggerGalleryLinkInputPrompt()" class="px-2.5 py-1.5 rounded-xl bg-[#fdf4f5] border border-[#f2dadc] text-[#b86b7a] text-xs font-bold hover:bg-[#f8eeee] transition flex items-center gap-1 shadow-2xs active:scale-95 shrink-0">
@@ -1218,6 +1242,9 @@ window.saveGalleryUrl = saveGalleryUrl;
                     container.appendChild(breadcrumb);
                 }
             }
+
+            // 在分类导航栏渲染完成后，如果是在文档分类子文件夹下且粘贴抽屉被打开，则把它插入到列表最上方
+            renderDocDrawerImportUI();
 
             filtered.forEach(item => {
                 const card = document.createElement('div');
@@ -2104,29 +2131,38 @@ function renderDocDrawerImportUI() {
     if (!container) {
         container = document.createElement('div');
         container.id = 'docDrawerContainer';
-        container.className = 'my-2 bg-white rounded-2xl border border-[#f2e3e3] p-2.5 shadow-2xs space-y-2';
+        container.className = 'my-2 bg-white rounded-2xl border border-[#f2e3e3] p-2.5 shadow-2xs space-y-2 col-span-full';
         
         const itemsContainer = document.getElementById('itemsContainer');
-        if (itemsContainer && itemsContainer.parentNode) {
-            itemsContainer.parentNode.insertBefore(container, itemsContainer);
-        } else {
-            document.body.appendChild(container);
+        if (itemsContainer) {
+            const breadcrumbNode = itemsContainer.querySelector('.col-span-full');
+            if (breadcrumbNode && breadcrumbNode.nextSibling) {
+                itemsContainer.insertBefore(container, breadcrumbNode.nextSibling);
+            } else {
+                itemsContainer.insertBefore(container, itemsContainer.firstChild);
+            }
         }
     }
 
     const bodyWasOpen = document.getElementById('docImportDrawerBody') ? !document.getElementById('docImportDrawerBody').classList.contains('hidden') : false;
 
+    if (!bodyWasOpen) {
+        container.classList.add('hidden');
+    } else {
+        container.classList.remove('hidden');
+    }
+
     container.innerHTML = `
         <div class="flex items-center justify-between">
             <span class="text-xs font-bold text-[#4a3e3d] flex items-center gap-1.5">
-                <span>📄</span> 复制文本导入文档
+                <span>📄</span> 粘贴长文本草稿框
             </span>
-            <button onclick="toggleDocImportDrawer()" class="text-[11px] font-bold text-[#d88c9a] bg-[#f8eeee] px-2.5 py-1 rounded-full hover:bg-[#f2dadc] transition flex items-center gap-1 shadow-xs">
-                <span id="docDrawerToggleIcon">✏️ 新建/粘贴</span>
+            <button onclick="toggleDocImportDrawer(false)" class="text-[11px] font-bold text-[#a38b8d] hover:text-[#d88c9a]">
+                ✕ 关闭
             </button>
         </div>
 
-        <div id="docImportDrawerBody" class="${bodyWasOpen ? '' : 'hidden'} pt-2 border-t border-[#f7ecee] space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
+        <div id="docImportDrawerBody" class="${bodyWasOpen ? '' : 'hidden'} pt-2 border-t border-[#f7ecee] space-y-2">
             <div>
                 <label class="block text-[10px] font-semibold text-[#8c7476] mb-0.5">文档标题</label>
                 <input id="docImportTitleInput" type="text" placeholder="例: 小说角色大纲 / 章节草稿" class="w-full bg-[#faf6f0] border border-[#f2e3e3] rounded-lg px-2.5 py-1.5 text-xs text-[#4a3e3d] focus:outline-none focus:border-[#d88c9a]">
@@ -2145,14 +2181,20 @@ function renderDocDrawerImportUI() {
 }
 
 function toggleDocImportDrawer(show = null) {
+    const container = document.getElementById('docDrawerContainer');
     const body = document.getElementById('docImportDrawerBody');
-    if (!body) return;
+    if (!container || !body) return;
     if (show === null) {
         body.classList.toggle('hidden');
     } else if (show) {
         body.classList.remove('hidden');
     } else {
         body.classList.add('hidden');
+    }
+    if (body.classList.contains('hidden')) {
+        container.classList.add('hidden');
+    } else {
+        container.classList.remove('hidden');
     }
 }
 
