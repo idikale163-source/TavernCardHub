@@ -1175,18 +1175,33 @@ window.saveGalleryUrl = saveGalleryUrl;
                     // Breadcrumb Header (最左上角极简粉色胶囊 + 文件夹内部导入按钮)
                     const breadcrumb = document.createElement('div');
                     breadcrumb.className = "col-span-full flex items-center justify-between bg-white/80 backdrop-blur-md border border-white/60 rounded-2xl p-2.5 mb-2.5 shadow-2xs";
+                    
+                    let importBtnHtml = `
+                        <button onclick="triggerGlobalDirectImport()" class="px-3 py-1.5 rounded-xl bg-[#fff0f3] border border-[#f2dadc] text-[#e11d48] text-xs font-bold hover:bg-[#ffe4e6] transition flex items-center gap-1 shadow-2xs active:scale-95">
+                            📥 导入/上传
+                        </button>
+                    `;
+                    if (currentTab === 'gallery') {
+                        importBtnHtml = `
+                            <button onclick="triggerGalleryLinkInputPrompt()" class="px-3 py-1.5 rounded-xl bg-[#fdf4f5] border border-[#f2dadc] text-[#b86b7a] text-xs font-bold hover:bg-[#f8eeee] transition flex items-center gap-1 shadow-2xs active:scale-95">
+                                🔗 粘贴图片直链
+                            </button>
+                            <button onclick="triggerGlobalDirectImport()" class="px-3 py-1.5 rounded-xl bg-[#fff0f3] border border-[#f2dadc] text-[#e11d48] text-xs font-bold hover:bg-[#ffe4e6] transition flex items-center gap-1 shadow-2xs active:scale-95">
+                                📥 上传本地图
+                            </button>
+                        `;
+                    }
+
                     breadcrumb.innerHTML = `
-                        <div class="flex items-center gap-2 min-w-0 flex-1">
-                            <button onclick="exitFolderView()" class="px-3 py-1.5 rounded-xl bg-[#d88c9a] text-white text-xs font-bold hover:bg-[#c97b8b] transition flex items-center gap-1 shrink-0 shadow-2xs active:scale-95">
-                                <i data-lucide="chevron-left" class="w-4 h-4"></i> 返回
+                        <div class="flex items-center gap-1.5 min-w-0 flex-1">
+                            <button onclick="exitFolderView()" class="px-2.5 py-1 rounded-xl bg-[#d88c9a] text-white text-xs font-bold hover:bg-[#c97b8b] transition flex items-center gap-0.5 shrink-0 shadow-2xs active:scale-95">
+                                <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i> 返回
                             </button>
                             <span class="text-xs font-extrabold text-[#4a3e3d] truncate">📂 ${currentFolderOpened}</span>
                         </div>
-                        <div class="flex items-center gap-2 shrink-0">
-                            <button onclick="triggerGlobalDirectImport()" class="px-3 py-1.5 rounded-xl bg-[#fff0f3] border border-[#f2dadc] text-[#e11d48] text-xs font-bold hover:bg-[#ffe4e6] transition flex items-center gap-1 shadow-2xs active:scale-95">
-                                📥 导入/上传
-                            </button>
-                            <button onclick="promptBatchMoveToFolder()" class="text-[11px] text-[#b86b7a] hover:underline font-semibold shrink-0 ml-1">+ 移动选中</button>
+                        <div class="flex items-center gap-1.5 shrink-0">
+                            ${importBtnHtml}
+                            <button onclick="promptBatchMoveToFolder()" class="text-[11px] text-[#b86b7a] hover:underline font-semibold shrink-0 ml-0.5">+ 移动</button>
                         </div>
                     `;
                     container.appendChild(breadcrumb);
@@ -2772,12 +2787,36 @@ function renderDocVersionSelectOptions() {
 window.renderDocVersionSelectOptions = renderDocVersionSelectOptions;
 
 
-function toggleGalleryPanel() {
-    const b = document.getElementById('galleryBody');
-    const c = document.getElementById('galleryChevron');
-    if (b) {
-        b.classList.toggle('hidden');
-        if (c) c.textContent = b.classList.contains('hidden') ? '⌄' : '⌃';
+async function triggerGalleryLinkInputPrompt() {
+    const url = prompt('请输入或粘贴图片网络直链 (以 https:// 开头)：');
+    if (!url || !url.trim()) return;
+    const cleanUrl = url.trim();
+    if (!/^https?:\/\//i.test(cleanUrl)) {
+        showToast('⚠️', '请输入有效的 https:// 图片直链！');
+        return;
+    }
+    const defaultName = '图片_' + new Date().toLocaleDateString().replace(/\//g, '');
+    const title = prompt('请输入图片名称/备注：', defaultName) || defaultName;
+
+    try {
+        showToast('⌛', '正在保存网络图片直链...');
+        await saveAsset({
+            id: 'asset_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+            category: 'gallery',
+            name: title.trim(),
+            fileType: 'img',
+            url: cleanUrl,
+            rawText: cleanUrl,
+            subCategory: currentFolderOpened || '',
+            createdAt: Date.now()
+        });
+        allAssetsCache = null;
+        updateBadges();
+        await renderItems();
+        showToast('🎉', '网络图片直链保存成功！');
+    } catch(e) {
+        console.error(e);
+        showToast('❌', '保存图片直链失败');
     }
 }
-window.toggleGalleryPanel = toggleGalleryPanel;
+window.triggerGalleryLinkInputPrompt = triggerGalleryLinkInputPrompt;
