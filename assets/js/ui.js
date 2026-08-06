@@ -1409,12 +1409,34 @@ async function processFile(file, targetCategory = currentTab) {
 
             if (item.category === 'gallery') {
                 document.getElementById('secondaryPillsBar').classList.add('hidden');
-                switchDetailTab('doc-full');
+                switchDetailTab('theme-standalone');
                 const imgUrl = getAssetImageUrl(item);
-                document.getElementById('docFullTitle').innerHTML = `<i data-lucide="image" class="w-4 h-4 text-[#d88c9a]"></i><span>图库大图预览</span>`;
-                document.getElementById('docFullContentText').innerHTML = `
-                    <div class="flex flex-col items-center gap-3 py-2">
-                        <img src="${imgUrl}" class="max-w-full rounded-2xl shadow-md border border-[#f5e1e3] max-h-[70vh] object-contain">
+                const container = document.getElementById('subview-theme-standalone');
+                container.innerHTML = `
+                    <div class="w-full space-y-3 pt-1">
+                        <div class="w-full bg-white/90 rounded-2xl p-4 border border-[#f2dadc] shadow-xs space-y-3 text-center">
+                            <div class="flex items-center justify-between gap-2 border-b border-[#f5e1e3] pb-2">
+                                <div class="flex items-center gap-1.5 text-xs font-bold text-[#b86b7a]">
+                                    <i data-lucide="image" class="w-4 h-4 text-[#d88c9a]"></i>
+                                    <span>图库大图预览</span>
+                                </div>
+                                <button type="button" onclick="renameCurrentItem()" class="px-3 py-1 rounded-full bg-[#fdf4f5] border border-[#f2dadc] text-[#b86b7a] text-xs font-bold hover:bg-[#f2dadc] transition flex items-center gap-1 shrink-0">
+                                    ✏️ 修改名字
+                                </button>
+                            </div>
+                            <div class="text-sm font-bold text-[#4a3e3d] truncate pt-1">${item.name}</div>
+                            <div class="flex justify-center py-2">
+                                <img src="${imgUrl}" class="max-w-full rounded-2xl shadow-md border border-[#f5e1e3] max-h-[65vh] object-contain">
+                            </div>
+                            <div class="grid grid-cols-2 gap-2.5 pt-2">
+                                <button type="button" onclick="const a = document.createElement('a'); a.href='${imgUrl}'; a.download='${item.name}.png'; a.click();" class="w-full py-2.5 rounded-xl bg-[#d88c9a] text-white font-bold text-xs shadow-xs hover:bg-[#c97b8b] transition">
+                                    📥 保存原图
+                                </button>
+                                <button type="button" onclick="deleteCurrentItem()" class="w-full py-2.5 rounded-xl bg-[#f5e1e3] text-[#c95368] font-bold text-xs hover:bg-[#f0cfd3] transition">
+                                    🗑️ 删除图片
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 `;
                 lucide.createIcons();
@@ -1430,7 +1452,16 @@ async function processFile(file, targetCategory = currentTab) {
                 return;
             }
 
-            if (item.category === 'docs') { document.getElementById('secondaryPillsBar').classList.add('hidden'); switchDetailTab('doc-full'); const textarea = document.getElementById('docFullContentTextarea'); if (textarea) textarea.value = item.rawText || ''; renderDocVersionSelectOptions(); return; }
+            // 如果卡片格式是 docx 或 txt 文本类型（非 JSON/PNG 深度角色卡），直接切换到文档全文模式，不显示人设世界书等 Tab
+            const ext = (item.fileType || '').toLowerCase();
+            if (ext === 'docx' || ext === 'doc' || (item.category === 'cards' && ext === 'txt' && !item.cardData)) {
+                document.getElementById('secondaryPillsBar').classList.add('hidden');
+                switchDetailTab('doc-full');
+                const textarea = document.getElementById('docFullContentTextarea');
+                if (textarea) textarea.value = item.rawText || '无文档/DOCX文本内容';
+                renderDocVersionSelectOptions();
+                return;
+            }
             
             document.getElementById('secondaryPillsBar').classList.remove('hidden');
             let pText = item.personality || extractPersonalityDeep(item.cardData || {});
