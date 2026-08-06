@@ -292,57 +292,52 @@ lucide.createIcons();
         // ✨ 全景晶莹毛玻璃 (Full Glassmorphism) 默认加载引擎
         // ============================================================
         let customCssCollapsed = true;
-        const DEFAULT_GLASS_CSS = `/* ✨ 全景晶莹透光毛玻璃 (Full Glassmorphism) */
-body {
-    background: linear-gradient(135deg, #fef4f6 0%, #f5e1e4 50%, #edd3d8 100%) fixed !important;
+        const DEFAULT_GLASS_CSS = `/* ✨ 雾蓝暗调磨砂玻璃 (Mist Aqua Dimmed Glass) */
+html, body {
+    background: linear-gradient(rgba(0,0,0,0.22), rgba(0,0,0,0.22)), url('https://nos.netease.com/ysf/b3d01ac6da613cbd6e61b56d7dfadb3f.png') center center / cover no-repeat fixed !important;
+    min-height: 100vh !important;
 }
-body, main, header, div, section, article {
-    background-color: transparent !important;
+#app, main, #listView, #detailView, #secondaryPillsBar, .bg-\[\#faf6f0\], .bg-white\/50, div[class*="bg-[#faf6f0]"] {
+    background: transparent !important;
 }
-.bg-[#faf6f0], .bg-white\/50, main { 
-    background: transparent !important; 
+body::before {
+    content: ""; position: fixed; inset: 0; pointer-events: none;
+    background: radial-gradient(circle at 15% 15%, rgba(255,255,255,0.25), transparent 28%), radial-gradient(circle at 85% 25%, rgba(180,225,240,0.25), transparent 32%), radial-gradient(circle at 60% 90%, rgba(200,230,240,0.20), transparent 30%);
+    filter: blur(40px); z-index: 0;
 }
-/* 侧边栏 20px 级极清毛玻璃 */
-aside {
-    background: rgba(255, 255, 255, 0.45) !important;
-    backdrop-filter: blur(20px) !important;
-    -webkit-backdrop-filter: blur(20px) !important;
-    border-right: 1px solid rgba(255, 255, 255, 0.6) !important;
-}
-/* 搜索顶栏毛玻璃 */
-.p-3.bg-white, .bg-white {
-    background: rgba(255, 255, 255, 0.5) !important;
-    backdrop-filter: blur(18px) !important;
-    -webkit-backdrop-filter: blur(18px) !important;
-    border: 1px solid rgba(255, 255, 255, 0.6) !important;
-    box-shadow: 0 8px 32px rgba(216, 140, 154, 0.08) !important;
-}
-/* 所有文件夹卡片、资产卡片 100% 极清透光毛玻璃 */
-.ui-card {
-    background: rgba(255, 255, 255, 0.5) !important;
-    backdrop-filter: blur(18px) !important;
-    -webkit-backdrop-filter: blur(18px) !important;
-    border: 1px solid rgba(255, 255, 255, 0.75) !important;
-    box-shadow: 0 4px 20px rgba(216, 140, 154, 0.1) !important;
-    border-radius: 18px !important;
+#app { position: relative; z-index: 1; }
+.ui-card, aside, #sidebarDrawer, header, .p-3.bg-white, .ui-card.p-3, .ui-card.p-4 {
+    background: linear-gradient(145deg, rgba(255,255,255,0.45), rgba(180,215,230,0.38)) !important;
+    backdrop-filter: blur(28px) saturate(120%) !important;
+    -webkit-backdrop-filter: blur(28px) saturate(120%) !important;
+    border: 1px solid rgba(255,255,255,0.40) !important;
+    box-shadow: inset 0 0 25px rgba(255,255,255,0.30), inset 1px 1px 0 rgba(255,255,255,0.60), inset -1px -1px 0 rgba(100,160,180,0.15), 0 10px 30px rgba(20,60,80,0.18) !important;
+    border-radius: 22px !important;
 }
 .ui-card:hover {
-    background: rgba(255, 255, 255, 0.68) !important;
-    border-color: rgba(216, 140, 154, 0.5) !important;
-    box-shadow: 0 10px 30px rgba(216, 140, 154, 0.22) !important;
+    background: linear-gradient(145deg, rgba(255,255,255,0.55), rgba(195,225,238,0.48)) !important;
+    box-shadow: inset 0 0 30px rgba(255,255,255,0.50), 0 15px 40px rgba(40,100,130,0.22) !important;
 }
-/* 输入框与弹窗毛玻璃 */
-input, textarea, select {
-    background: rgba(255, 255, 255, 0.6) !important;
-    backdrop-filter: blur(12px) !important;
-    -webkit-backdrop-filter: blur(12px) !important;
-    border: 1px solid rgba(255, 255, 255, 0.7) !important;
+h1, h2, h3, h4, .font-bold, .text-\[\#4a3e3d\], .text-\[\#5c494a\] {
+    color: #233b47 !important; text-shadow: 0 1px 2px rgba(255,255,255,0.6);
 }
-.bg-[#fdf6f7], .bg-[#fdf4f5], .bg-[#f8eeee] {
-    background: rgba(248, 238, 238, 0.65) !important;
-    backdrop-filter: blur(10px) !important;
-    color: #b86b7a !important;
-}`;
+.text-\[\#8c7173\], .text-\[\#785e60\], .text-\[\#b86b7a\], .text-\[\#a38b8d\], *[class*="text-[#8c7173]"], *[class*="text-[#785e60]"], *[class*="text-[#b86b7a]"] {
+    color: #436370 !important;
+}
+i, svg, [data-lucide] {
+    color: #4b8fa4 !important; stroke: #4b8fa4 !important;
+}
+button.bg-\[\#d88c9a\], .bg-\[\#d88c9a\], label.bg-\[\#d88c9a\], button[onclick*="save"], button[onclick*="apply"] {
+    background: linear-gradient(135deg, #62b1c7, #4592ac) !important; color: white !important; border: 1px solid rgba(255,255,255,0.6) !important; box-shadow: 0 6px 20px rgba(50,120,150,0.3) !important;
+}
+.bg-\[\#f8eeee\], .bg-\[\#fdf4f5\], .bg-\[\#fdf6f7\] {
+    background: rgba(185,222,235,0.55) !important; color: #3b7486 !important;
+}
+input, textarea {
+    background: rgba(255,255,255,0.42) !important; backdrop-filter: blur(20px) !important; -webkit-backdrop-filter: blur(20px) !important; border: 1px solid rgba(150,205,220,0.5) !important; color: #2d4c57 !important; border-radius: 16px !important;
+}
+.text-\[\#d88c9a\], .text-pink-500, .text-rose-500 { color: #45889e !important; }
+.bg-pink-500, .bg-rose-500 { background: #64b1c7 !important; }`;
 
         function toggleCustomCssCollapse() {
             customCssCollapsed = !customCssCollapsed;
