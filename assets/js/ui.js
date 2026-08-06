@@ -1323,6 +1323,7 @@ if (currentTab === 'docs' || currentTab === 'regex') {
                 container.appendChild(card);
             });
 
+            renderDocDrawerImportUI();
             lucide.createIcons();
         }
 
