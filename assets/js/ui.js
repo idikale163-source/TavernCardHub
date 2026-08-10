@@ -327,24 +327,14 @@ async function processFile(file, targetCategory = currentTab) {
                 return URL.createObjectURL(item.cover);
             }
             if (item.rawBuffer instanceof ArrayBuffer) {
-                const mime = (item.fileType && item.fileType.includes('/')) ? item.fileType : `image/${item.fileType || 'png'}`;
-                const blob = new Blob([item.rawBuffer], { type: mime });
-                return URL.createObjectURL(blob);
-            }
-            if (item.rawBuffer && typeof item.rawBuffer === 'object' && item.rawBuffer.byteLength) {
-                const blob = new Blob([new Uint8Array(Object.values(item.rawBuffer))], { type: 'image/png' });
+                const blob = new Blob([item.rawBuffer], { type: item.fileType || 'image/png' });
                 return URL.createObjectURL(blob);
             }
             if (item.url) return item.url;
             return item.cover || item.rawText || '';
         }
 
-        async function saveAsset(asset) {
-            // 修复图片 Blob 类型转换：存入 IndexedDB 之前统一将 Blob 转成 ArrayBuffer
-            if (asset.cover instanceof Blob || asset.cover instanceof File) {
-                asset.rawBuffer = await asset.cover.arrayBuffer();
-                delete asset.cover;
-            }
+        function saveAsset(asset) {
             return new Promise((resolve, reject) => {
                 asset.createdAt = asset.createdAt || Date.now();
                 try {
@@ -550,14 +540,9 @@ async function processFile(file, targetCategory = currentTab) {
                             for (let row of batchData) {
                                 let buffer = null;
                                 if (row.raw_buffer_base64) {
-                                    try {
-                                        const cleanB64 = row.raw_buffer_base64.replace(/^data:image\/[^;]+;base64,/, '').trim();
-                                        const binary = atob(cleanB64), bytes = new Uint8Array(binary.length);
-                                        for (let j = 0; j < binary.length; j++) bytes[j] = binary.charCodeAt(j);
-                                        buffer = bytes.buffer;
-                                    } catch(err) {
-                                        console.error("Base64 decode error for row:", row.id, err);
-                                    }
+                                    const binary = atob(row.raw_buffer_base64), bytes = new Uint8Array(binary.length);
+                                    for (let j = 0; j < binary.length; j++) bytes[j] = binary.charCodeAt(j);
+                                    buffer = bytes.buffer;
                                 }
                                 const dataObj = row.card_data?.data || row.card_data || {};
                                 const asset = { id: row.id, category: row.category, subCategory: row.subCategory || '', name: row.name, fileType: row.file_type, rawBuffer: buffer, cardData: row.card_data, emojiList: row.card_data?.emojiList || null, rawText: row.raw_text, firstMes: dataObj.first_mes || '', alternateGreetings: dataObj.alternate_greetings || [], personality: extractPersonalityDeep(row.card_data || {}), worldbook: dataObj.character_book || (row.category === 'worldbooks' ? row.card_data : null), regexScripts: dataObj.extensions?.regex_scripts || (row.category === 'regex' ? row.card_data : null), createdAt: row.created_at || Date.now() };
