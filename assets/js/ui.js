@@ -457,7 +457,7 @@ async function processFile(file, targetCategory = currentTab) {
                     for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
                     base64Buf = btoa(binary);
                 }
-                const { error } = await supabaseClient.from('tavern_assets').upsert({ id: asset.id, category: asset.category, name: asset.name, file_type: asset.fileType, card_data: asset.cardData || { emojiList: asset.emojiList, subCategory: asset.subCategory } || { subCategory: asset.subCategory }, raw_text: asset.rawText || null, raw_buffer_base64: base64Buf, created_at: asset.createdAt });
+                const { error } = await supabaseClient.from('tavern_assets').upsert({ id: asset.id, category: asset.category, name: asset.name, file_type: asset.fileType, card_data: asset.cardData || { emojiList: asset.emojiList } || null, raw_text: asset.rawText || null, raw_buffer_base64: base64Buf, created_at: asset.createdAt });
                 if (!error) { showToast('⚡', `“${asset.name}”已增量同步至云端`); }
             } catch(e){}
         }
@@ -2815,7 +2815,7 @@ function promptCreateFolder() {
         if (!Array.isArray(customFolders)) customFolders = [];
         if (!customFolders.includes(cleanName)) {
             customFolders.unshift(cleanName);
-            localStorage.setItem('TAVERN_CUSTOM_FOLDERS_' + currentTab, JSON.stringify(customFolders)); syncCustomFoldersToCloudSilent();
+            localStorage.setItem('TAVERN_CUSTOM_FOLDERS_' + currentTab, JSON.stringify(customFolders));
         }
         currentFolderOpened = null;
         renderItems();
@@ -3122,29 +3122,4 @@ async function renameFolder(oldName) {
     }
 }
 window.renameFolder = renameFolder;
-
-
-
-async function syncCustomFoldersToCloudSilent() {
-    if (!supabaseClient) return;
-    try {
-        const categories = ['cards', 'worldbooks', 'emojis', 'regex', 'docs', 'gallery', 'themes', 'links'];
-        const foldersMap = {};
-        categories.forEach(cat => {
-            const saved = localStorage.getItem('TAVERN_CUSTOM_FOLDERS_' + cat);
-            if (saved) {
-                try { foldersMap[cat] = JSON.parse(saved); } catch(e){}
-            }
-        });
-        await supabaseClient.from('tavern_assets').upsert({
-            id: '___CUSTOM_FOLDERS_CONFIG___',
-            category: 'config',
-            name: '自定义小文件夹结构备份',
-            file_type: 'json',
-            card_data: foldersMap,
-            created_at: Date.now()
-        });
-    } catch(e) { console.error('Sync custom folders failed', e); }
-}
-window.syncCustomFoldersToCloudSilent = syncCustomFoldersToCloudSilent;
 
