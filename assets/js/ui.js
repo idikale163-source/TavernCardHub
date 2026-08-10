@@ -495,18 +495,34 @@ async function processFile(file, targetCategory = currentTab) {
             if (!supabaseClient) { alert('未配置 Supabase 云端，无法恢复。请在侧边栏填入 URL 与 Key！'); return; }
             document.getElementById('cloudStatusBadge').innerText = '恢复中...';
             showToast('🔄', '正在对比拉取云端新增资产...');
+
             try {
                 const localAssets = await getAllAssets();
                 const localMap = new Map();
                 localAssets.forEach(a => localMap.set(a.id, a.createdAt || 0));
 
-                // 重点优化：只选择元数据，杜绝 select('*') 一次性抓取大文件造成的 Supabase 10 秒超时（statement timeout）
-                const { data, error } = await supabaseClient.from('tavern_assets').select('id, category, name, file_type, created_at');
-                if (error) { showToast('❌', `拉取失败: ${error.message}`); document.getElementById('cloudStatusBadge').innerText = '已连接'; return; }
+                // 1. 先进行轻量级元数据查询，避开 select('*') 在大型图库/美化包下的 Supabase 10s 超时
+                const { data: cloudMeta, error: metaErr } = await supabaseClient
+                    .from('tavern_assets')
+                    .select('id, category, name, file_type, created_at');
 
-                if (data && data.length > 0) {
+                if (metaErr) { 
+                    showToast('❌', `对比云端失败: ${metaErr.message}`); 
+                    document.getElementById('cloudStatusBadge').innerText = '已连接';
+                    return; 
+                }
+
+                if (cloudMeta && cloudMeta.length > 0) {
+                    // 专门筛选出：API 密钥、自定义设置、以及本地没有或云端更新的全部资产
                     const idsToFetch = [];
-                    for (let row of data) {
+                    let hasApiConfig = false;
+
+                    for (let row of cloudMeta) {
+                        if (row.id === '___API_KEYS_CONFIG___') {
+                            hasApiConfig = true;
+                            idsToFetch.push(row.id);
+                            continue;
+                        }
                         const localTimestamp = localMap.get(row.id);
                         const rowTimestamp = row.created_at || 0;
                         if (localTimestamp === undefined || rowTimestamp > localTimestamp) {
@@ -515,15 +531,15 @@ async function processFile(file, targetCategory = currentTab) {
                     }
 
                     if (idsToFetch.length === 0) {
-                        showToast('🎉', '本地资产已是最新，无须从云端同步！');
+                        showToast('🎉', '本地资产与 API 配置已是最新，无须从云端同步！');
                         document.getElementById('cloudStatusBadge').innerText = '已连接';
                         return;
                     }
 
-                    showToast('⌛', `发现 ${idsToFetch.length} 个新变动资产，正在分批同步...`);
+                    showToast('⌛', `正在分批同步 ${idsToFetch.length} 项变动资产（含 API 密钥/图片/美化包）...`);
                     let restoredCount = 0;
-                    // 分批（每批 10 个）拉取完整数据，完美避开 10 秒 Timeout
                     const batchSize = 10;
+
                     for (let i = 0; i < idsToFetch.length; i += batchSize) {
                         const batchIds = idsToFetch.slice(i, i + batchSize);
                         const { data: batchData, error: batchErr } = await supabaseClient
@@ -536,16 +552,51 @@ async function processFile(file, targetCategory = currentTab) {
                             continue;
                         }
 
-                        if (batchData) {
+                        if (batchData && batchData.length > 0) {
                             for (let row of batchData) {
+                                // 处理 API 密钥与自定义分类配置的专门恢复
+                                if (row.id === '___API_KEYS_CONFIG___') {
+                                    if (row.card_data) {
+                                        if (Array.isArray(row.card_data.keys) && typeof saveStoredApiKeys === 'function') {
+                                            saveStoredApiKeys(row.card_data.keys);
+                                        }
+                                        if (Array.isArray(row.card_data.categories) && typeof saveStoredCustomCategories === 'function') {
+                                            saveStoredCustomCategories(row.card_data.categories);
+                                        }
+                                    }
+                                    continue;
+                                }
+
+                                // 处理常规资产（图库图片/美化包/角色卡/表情/文档/链接等）
                                 let buffer = null;
                                 if (row.raw_buffer_base64) {
-                                    const binary = atob(row.raw_buffer_base64), bytes = new Uint8Array(binary.length);
-                                    for (let j = 0; j < binary.length; j++) bytes[j] = binary.charCodeAt(j);
-                                    buffer = bytes.buffer;
+                                    try {
+                                        const cleanB64 = row.raw_buffer_base64.replace(/^data:image\/[^;]+;base64,/, '').trim();
+                                        const binary = atob(cleanB64), bytes = new Uint8Array(binary.length);
+                                        for (let j = 0; j < binary.length; j++) bytes[j] = binary.charCodeAt(j);
+                                        buffer = bytes.buffer;
+                                    } catch(err) {
+                                        console.error('Decode base64 failed for asset:', row.id, err);
+                                    }
                                 }
+
                                 const dataObj = row.card_data?.data || row.card_data || {};
-                                const asset = { id: row.id, category: row.category, subCategory: row.subCategory || '', name: row.name, fileType: row.file_type, rawBuffer: buffer, cardData: row.card_data, emojiList: row.card_data?.emojiList || null, rawText: row.raw_text, firstMes: dataObj.first_mes || '', alternateGreetings: dataObj.alternate_greetings || [], personality: extractPersonalityDeep(row.card_data || {}), worldbook: dataObj.character_book || (row.category === 'worldbooks' ? row.card_data : null), regexScripts: dataObj.extensions?.regex_scripts || (row.category === 'regex' ? row.card_data : null), createdAt: row.created_at || Date.now() };
+                                const asset = {
+                                    id: row.id,
+                                    category: row.category,
+                                    name: row.name,
+                                    fileType: row.file_type,
+                                    rawBuffer: buffer,
+                                    cardData: row.card_data,
+                                    emojiList: row.card_data?.emojiList || null,
+                                    rawText: row.raw_text,
+                                    firstMes: dataObj.first_mes || '',
+                                    alternateGreetings: dataObj.alternate_greetings || [],
+                                    personality: extractPersonalityDeep(row.card_data || {}),
+                                    worldbook: dataObj.character_book || (row.category === 'worldbooks' ? row.card_data : null),
+                                    regexScripts: dataObj.extensions?.regex_scripts || (row.category === 'regex' ? row.card_data : null),
+                                    createdAt: row.created_at || Date.now()
+                                };
                                 
                                 const tx = db.transaction('assets', 'readwrite');
                                 tx.objectStore('assets').put(asset);
@@ -553,10 +604,17 @@ async function processFile(file, targetCategory = currentTab) {
                             }
                         }
                     }
-                    updateBadges(); renderItems();
-                    showToast('🎉', `云端增量同步完毕！成功增量恢复 ${restoredCount} 个资产！`);
+
+                    if (typeof renderApiKeyList === 'function') renderApiKeyList();
+                    if (typeof renderApiKeyCategoryPills === 'function') renderApiKeyCategoryPills();
+                    updateBadges(); 
+                    await renderItems();
+                    showToast('🎉', `云端全模块增量同步完毕！包含 API 密钥、自定义分类及 ${restoredCount} 项大文件资产！`);
                 } else { showToast('ℹ️', '云端数据库为空'); }
-            } catch(e){ console.error(e); showToast('❌', '恢复失败，请检查 Supabase 配置'); }
+            } catch(e){ 
+                console.error(e); 
+                showToast('❌', '恢复失败，请检查 Supabase 配置'); 
+            }
             document.getElementById('cloudStatusBadge').innerText = '已连接';
         }
 
