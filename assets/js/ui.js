@@ -98,8 +98,7 @@ function switchTab(tab, e) {
     const emojiPanel = document.getElementById('emojiExportBuilderPanel');
     const linksPanel = document.getElementById('linksBuilderPanel');
     const itemsGrid = document.getElementById('itemsContainer');
-    const searchInput = document.getElementById('searchInput');
-    const searchBar = searchInput ? (searchInput.parentElement ? searchInput.parentElement.parentElement : null) : null;
+    const searchBar = document.getElementById('searchInput')?.parentElement?.parentElement;
     
     if (fontsPanel) fontsPanel.classList.add('hidden');
     if (galleryPanel) galleryPanel.classList.add('hidden');
@@ -419,65 +418,30 @@ async function processFile(file, targetCategory = currentTab) {
                 allAssetsCache = null;
 
                 tx.oncomplete = async () => {
-                                    // 优化：避免 select('*') 导致下载巨型 buffer 触发 Supabase 10s 语句超时
-                // 先只查询元数据列表，精定位需要增量更新的资产
-                const { data, error } = await supabaseClient.from('tavern_assets').select('id, category, name, file_type, created_at, subCategory');
-                if (error) { showToast('❌', `拉取失败: ${error.message}`); return; }
+                    const { data, error } = await supabaseClient.from('tavern_assets').select('*');
+                    if (error) { showToast('❌', `拉取云端失败: ${error.message}`); return; }
 
-                if (data && data.length > 0) {
-                    let restoredCount = 0;
-                    const idsToFetch = [];
-                    for (let row of data) {
-                        const localTimestamp = localMap.get(row.id);
-                        const rowTimestamp = row.created_at || 0;
-                        if (localTimestamp === undefined || rowTimestamp > localTimestamp) {
-                            idsToFetch.push(row.id);
-                        }
-                    }
-
-                    if (idsToFetch.length === 0) {
-                        showToast('🎉', '本地数据已是最新，无须从云端同步！');
-                        document.getElementById('cloudStatusBadge').innerText = '已连接';
-                        return;
-                    }
-
-                    showToast('⌛', `正在分批同步 ${idsToFetch.length} 个变动资产...`);
-                    // 分批拉取完整数据（每批 10 个），彻底杜绝超大 Payload 超时
-                    const batchSize = 10;
-                    for (let i = 0; i < idsToFetch.length; i += batchSize) {
-                        const batchIds = idsToFetch.slice(i, i + batchSize);
-                        const { data: batchData, error: batchErr } = await supabaseClient
-                            .from('tavern_assets')
-                            .select('*')
-                            .in('id', batchIds);
-                        
-                        if (batchErr) {
-                            console.error('Batch sync error:', batchErr);
-                            continue;
-                        }
-
-                        if (batchData) {
-                            for (let row of batchData) {
-                                let buffer = null;
-                                if (row.raw_buffer_base64) {
-                                    const binary = atob(row.raw_buffer_base64), bytes = new Uint8Array(binary.length);
-                                    for (let j = 0; j < binary.length; j++) bytes[j] = binary.charCodeAt(j);
-                                    buffer = bytes.buffer;
-                                }
-                                const dataObj = row.card_data?.data || row.card_data || {};
-                                const asset = { id: row.id, category: row.category, subCategory: row.subCategory || '', name: row.name, fileType: row.file_type, rawBuffer: buffer, cardData: row.card_data, emojiList: row.card_data?.emojiList || null, rawText: row.raw_text, firstMes: dataObj.first_mes || '', alternateGreetings: dataObj.alternate_greetings || [], personality: extractPersonalityDeep(row.card_data || {}), worldbook: dataObj.character_book || (row.category === 'worldbooks' ? row.card_data : null), regexScripts: dataObj.extensions?.regex_scripts || (row.category === 'regex' ? row.card_data : null), createdAt: row.created_at || Date.now() };
-                                
-                                const tx = db.transaction('assets', 'readwrite');
-                                tx.objectStore('assets').put(asset);
-                                restoredCount++;
+                    if (data && data.length > 0) {
+                        for (let row of data) {
+                            let buffer = null;
+                            if (row.raw_buffer_base64) {
+                                const binary = atob(row.raw_buffer_base64), bytes = new Uint8Array(binary.length);
+                                for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                                buffer = bytes.buffer;
                             }
+                            const dataObj = row.card_data?.data || row.card_data || {};
+                            const asset = { id: row.id, category: row.category, name: row.name, fileType: row.file_type, rawBuffer: buffer, cardData: row.card_data, emojiList: row.card_data?.emojiList || null, rawText: row.raw_text, firstMes: dataObj.first_mes || '', alternateGreetings: dataObj.alternate_greetings || [], personality: extractPersonalityDeep(row.card_data || {}), worldbook: dataObj.character_book || (row.category === 'worldbooks' ? row.card_data : null), regexScripts: dataObj.extensions?.regex_scripts || (row.category === 'regex' ? row.card_data : null), createdAt: row.created_at || Date.now() };
+                            
+                            const putTx = db.transaction('assets', 'readwrite');
+                            putTx.objectStore('assets').put(asset);
                         }
+                        allAssetsCache = null;
+                        updateBadges(); renderItems();
+                        showToast('🎉', `强行全量覆盖恢复完成！已从云端拉回 ${data.length} 项资产覆盖本地！`);
+                    } else {
+                        showToast('ℹ️', '云端无可用备份数据');
                     }
-                    updateBadges(); renderItems();
-                    showToast('🎉', `云端增量同步完毕！已成功恢复/更新 ${restoredCount} 个资产！`);
-                } else { showToast('ℹ️', '云端数据库为空'); }
-                document.getElementById('cloudStatusBadge').innerText = '已连接';
-                return;
+                    document.getElementById('cloudStatusBadge').innerText = '已连接';
                 };
             } catch(e) {
                 showToast('❌', '覆盖恢复失败');
@@ -537,65 +501,35 @@ async function processFile(file, targetCategory = currentTab) {
                 const localMap = new Map();
                 localAssets.forEach(a => localMap.set(a.id, a.createdAt || 0));
 
-                                // 优化：避免 select('*') 导致下载巨型 buffer 触发 Supabase 10s 语句超时
-                // 先只查询元数据列表，精定位需要增量更新的资产
-                const { data, error } = await supabaseClient.from('tavern_assets').select('id, category, name, file_type, created_at, subCategory');
+                const { data, error } = await supabaseClient.from('tavern_assets').select('*');
                 if (error) { showToast('❌', `拉取失败: ${error.message}`); return; }
 
                 if (data && data.length > 0) {
                     let restoredCount = 0;
-                    const idsToFetch = [];
                     for (let row of data) {
                         const localTimestamp = localMap.get(row.id);
                         const rowTimestamp = row.created_at || 0;
+
                         if (localTimestamp === undefined || rowTimestamp > localTimestamp) {
-                            idsToFetch.push(row.id);
-                        }
-                    }
-
-                    if (idsToFetch.length === 0) {
-                        showToast('🎉', '本地数据已是最新，无须从云端同步！');
-                        document.getElementById('cloudStatusBadge').innerText = '已连接';
-                        return;
-                    }
-
-                    showToast('⌛', `正在分批同步 ${idsToFetch.length} 个变动资产...`);
-                    // 分批拉取完整数据（每批 10 个），彻底杜绝超大 Payload 超时
-                    const batchSize = 10;
-                    for (let i = 0; i < idsToFetch.length; i += batchSize) {
-                        const batchIds = idsToFetch.slice(i, i + batchSize);
-                        const { data: batchData, error: batchErr } = await supabaseClient
-                            .from('tavern_assets')
-                            .select('*')
-                            .in('id', batchIds);
-                        
-                        if (batchErr) {
-                            console.error('Batch sync error:', batchErr);
-                            continue;
-                        }
-
-                        if (batchData) {
-                            for (let row of batchData) {
-                                let buffer = null;
-                                if (row.raw_buffer_base64) {
-                                    const binary = atob(row.raw_buffer_base64), bytes = new Uint8Array(binary.length);
-                                    for (let j = 0; j < binary.length; j++) bytes[j] = binary.charCodeAt(j);
-                                    buffer = bytes.buffer;
-                                }
-                                const dataObj = row.card_data?.data || row.card_data || {};
-                                const asset = { id: row.id, category: row.category, subCategory: row.subCategory || '', name: row.name, fileType: row.file_type, rawBuffer: buffer, cardData: row.card_data, emojiList: row.card_data?.emojiList || null, rawText: row.raw_text, firstMes: dataObj.first_mes || '', alternateGreetings: dataObj.alternate_greetings || [], personality: extractPersonalityDeep(row.card_data || {}), worldbook: dataObj.character_book || (row.category === 'worldbooks' ? row.card_data : null), regexScripts: dataObj.extensions?.regex_scripts || (row.category === 'regex' ? row.card_data : null), createdAt: row.created_at || Date.now() };
-                                
-                                const tx = db.transaction('assets', 'readwrite');
-                                tx.objectStore('assets').put(asset);
-                                restoredCount++;
+                            let buffer = null;
+                            if (row.raw_buffer_base64) {
+                                const binary = atob(row.raw_buffer_base64), bytes = new Uint8Array(binary.length);
+                                for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                                buffer = bytes.buffer;
                             }
+                            const dataObj = row.card_data?.data || row.card_data || {};
+                            const asset = { id: row.id, category: row.category, name: row.name, fileType: row.file_type, rawBuffer: buffer, cardData: row.card_data, emojiList: row.card_data?.emojiList || null, rawText: row.raw_text, firstMes: dataObj.first_mes || '', alternateGreetings: dataObj.alternate_greetings || [], personality: extractPersonalityDeep(row.card_data || {}), worldbook: dataObj.character_book || (row.category === 'worldbooks' ? row.card_data : null), regexScripts: dataObj.extensions?.regex_scripts || (row.category === 'regex' ? row.card_data : null), createdAt: row.created_at || Date.now() };
+                            
+                            const tx = db.transaction('assets', 'readwrite');
+                            tx.objectStore('assets').put(asset);
+                            restoredCount++;
                         }
                     }
                     updateBadges(); renderItems();
-                    showToast('🎉', `云端增量同步完毕！已成功恢复/更新 ${restoredCount} 个资产！`);
+                    showToast('🎉', `增量拉取完毕！仅恢复了 ${restoredCount} 个新增/变动资产！`);
                 } else { showToast('ℹ️', '云端数据库为空'); }
-                document.getElementById('cloudStatusBadge').innerText = '已连接';
-                return;
+            } catch(e){ showToast('❌', '恢复失败，请检查 Supabase 配置'); }
+            document.getElementById('cloudStatusBadge').innerText = '已连接';
         }
 
         async function autoSyncFromCloudSilent() {
@@ -1180,7 +1114,11 @@ window.saveGalleryUrl = saveGalleryUrl;
 
                         const startFolderPress = (e) => {
                             isFolderLongPress = false;
-                            // 移除了 500ms 长按误触自动弹弹窗删除逻辑，改由右侧明确的垃圾桶按钮操作
+                            folderLongPressTimer = setTimeout(() => {
+                                isFolderLongPress = true;
+                                if (navigator.vibrate) try { navigator.vibrate(50); } catch(err){}
+                                deleteEntireFolder(fName, cnt);
+                            }, 500);
                         };
 
                         const cancelFolderPress = () => {
@@ -2937,139 +2875,3 @@ async function triggerDocPasteModalPrompt() {
     };
 }
 window.triggerDocPasteModalPrompt = triggerDocPasteModalPrompt;
-
-
-// 本地 ZIP 完整导出与恢复逻辑
-async function exportFullZipBackup() {
-    if (typeof JSZip === 'undefined') {
-        showToast('❌', 'ZIP 压缩组件未就绪，请刷新页面重试');
-        return;
-    }
-    showToast('⌛', '正在打包全站本地资产，请稍候...');
-    try {
-        const zip = new JSZip();
-        const allAssets = await getAllAssets();
-        
-        // 1. 保存所有自定义分类名称
-        const customFolders = {};
-        const categories = ['cards', 'worldbooks', 'emojis', 'regex', 'docs', 'gallery', 'themes', 'links'];
-        categories.forEach(cat => {
-            const saved = localStorage.getItem('TAVERN_CUSTOM_FOLDERS_' + cat);
-            if (saved) {
-                try { customFolders[cat] = JSON.parse(saved); } catch(e){}
-            }
-        });
-
-        // 2. 剥离 rawBuffer，将 JSON 文本序列化
-        const manifestData = {
-            version: "1.0",
-            exportedAt: Date.now(),
-            customFolders: customFolders,
-            assets: []
-        };
-
-        const filesFolder = zip.folder("files");
-
-        for (let i = 0; i < allAssets.length; i++) {
-            const a = allAssets[i];
-            const metaAsset = { ...a };
-            if (metaAsset.rawBuffer) {
-                const filename = `asset_${a.id}.${a.fileType || 'bin'}`;
-                filesFolder.file(filename, a.rawBuffer);
-                delete metaAsset.rawBuffer;
-                metaAsset._fileRef = filename;
-            }
-            manifestData.assets.push(metaAsset);
-        }
-
-        zip.file("manifest.json", JSON.stringify(manifestData, null, 2));
-
-        const content = await zip.generateAsync({ type: "blob" });
-        const nowStr = new Date().toISOString().slice(0, 10);
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(content);
-        link.download = `ResourceHub_Backup_${nowStr}.zip`;
-        link.click();
-        showToast('🎉', `全站 ZIP 备份已导出（共包含 ${allAssets.length} 项资产）！`);
-    } catch(err) {
-        console.error('Export zip failed:', err);
-        showToast('❌', '导出 ZIP 失败: ' + err.message);
-    }
-}
-window.exportFullZipBackup = exportFullZipBackup;
-
-function triggerImportZipBackup() {
-    let zipInput = document.getElementById('zipBackupFileInput');
-    if (!zipInput) {
-        zipInput = document.createElement('input');
-        zipInput.type = 'file';
-        zipInput.id = 'zipBackupFileInput';
-        zipInput.accept = '.zip';
-        zipInput.className = 'hidden';
-        document.body.appendChild(zipInput);
-        zipInput.onchange = async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            if (typeof JSZip === 'undefined') {
-                showToast('❌', 'ZIP 解选组件未就绪');
-                return;
-            }
-            showToast('⌛', '正在读取并解析 ZIP 备份...');
-            try {
-                const zip = await JSZip.loadAsync(file);
-                const manifestFile = zip.file("manifest.json");
-                if (!manifestFile) {
-                    showToast('❌', '无效的备份包：找不到 manifest.json');
-                    return;
-                }
-                const manifestText = await manifestFile.async("string");
-                const manifest = JSON.parse(manifestText);
-
-                if (!manifest.assets || !Array.isArray(manifest.assets)) {
-                    showToast('❌', '备份文件格式错误');
-                    return;
-                }
-
-                // 还原自定义分类文件夹
-                if (manifest.customFolders) {
-                    for (let cat in manifest.customFolders) {
-                        const key = 'TAVERN_CUSTOM_FOLDERS_' + cat;
-                        const folders = manifest.customFolders[cat];
-                        if (Array.isArray(folders)) {
-                            localStorage.setItem(key, JSON.stringify(folders));
-                        }
-                    }
-                }
-
-                let importedCount = 0;
-                for (let a of manifest.assets) {
-                    let buffer = null;
-                    if (a._fileRef) {
-                        const fileInZip = zip.file(`files/${a._fileRef}`);
-                        if (fileInZip) {
-                            buffer = await fileInZip.async("arraybuffer");
-                        }
-                        delete a._fileRef;
-                    }
-                    a.rawBuffer = buffer;
-
-                    const tx = db.transaction('assets', 'readwrite');
-                    tx.objectStore('assets').put(a);
-                    importedCount++;
-                }
-
-                allAssetsCache = null;
-                if (typeof updateBadges === 'function') updateBadges();
-                await renderItems();
-                showToast('🎉', `本地 ZIP 恢复成功！已导入 ${importedCount} 项资产！`);
-            } catch(err) {
-                console.error('Import ZIP failed:', err);
-                showToast('❌', 'ZIP 导入失败: ' + err.message);
-            } finally {
-                e.target.value = '';
-            }
-        };
-    }
-    zipInput.click();
-}
-window.triggerImportZipBackup = triggerImportZipBackup;
