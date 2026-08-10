@@ -697,6 +697,15 @@ async function processFile(file, targetCategory = currentTab) {
 
                     // 增量恢复后,扫描所有本地资产的 subCategory,动态补建缺失的文件夹白名单
                     const allRestored = await getAllAssets();
+                    console.log('[WHITELIST REBUILD] total assets:', allRestored.length);
+                    const diagSamples = allRestored.slice(0, 10).map(a => ({ id: a.id, cat: a.category, sub: a.subCategory }));
+                    console.log('[WHITELIST REBUILD] sample 10:', diagSamples);
+                    const subCount = {};
+                    allRestored.forEach(a => {
+                        const k = (a.subCategory || 'NULL') + '|' + a.category;
+                        subCount[k] = (subCount[k] || 0) + 1;
+                    });
+                    console.log('[WHITELIST REBUILD] sub|cat counts:', subCount);
                     const folderMap = {};
                     allRestored.forEach(a => {
                         if (a.subCategory && a.subCategory !== '未分类') {
@@ -704,6 +713,7 @@ async function processFile(file, targetCategory = currentTab) {
                             folderMap[a.category].add(a.subCategory);
                         }
                     });
+                    console.log('[WHITELIST REBUILD] folderMap built:', JSON.stringify([...Object.entries(folderMap)].map(([k,v]) => [k, [...v]])));
                     for (let cat in folderMap) {
                         const key = 'TAVERN_CUSTOM_FOLDERS_' + cat;
                         let list = [];
@@ -712,6 +722,7 @@ async function processFile(file, targetCategory = currentTab) {
                         folderMap[cat].forEach(name => { if (!list.includes(name)) list.push(name); });
                         localStorage.setItem(key, JSON.stringify(list));
                     }
+                    console.log('[WHITELIST REBUILD] After write, TAVERN_CUSTOM_FOLDERS_cards:', localStorage.getItem('TAVERN_CUSTOM_FOLDERS_cards'));
                     if (typeof renderApiKeyList === 'function') renderApiKeyList();
                     if (typeof renderApiKeyCategoryPills === 'function') renderApiKeyCategoryPills();
                     updateBadges(); 
