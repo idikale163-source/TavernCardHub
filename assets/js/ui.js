@@ -1094,23 +1094,30 @@ window.saveGalleryUrl = saveGalleryUrl;
             // Category/Folder First View (Except fonts)
             if (['cards', 'worldbooks', 'docs', 'regex', 'gallery', 'links', 'emojis'].includes(currentTab) || isCustomCategoryTab(currentTab)) {
                 if (!currentFolderOpened && !keyword) {
-                    // Group by subCategory & Include empty custom folders
+                    // Group by subCategory & Strict Isolation by Custom Folders list
                     const folderCounts = {};
                     folderCounts['未分类'] = 0;
                     
-                    // 读取持久化的自定义文件夹列表
+                    // 读取当前大分类专属持久化的自定义文件夹列表
                     let customFolders = [];
                     try {
                         const saved = localStorage.getItem('TAVERN_CUSTOM_FOLDERS_' + currentTab);
                         if (saved) customFolders = JSON.parse(saved);
                     } catch(e){}
-                    if (Array.isArray(customFolders)) {
-                        customFolders.forEach(f => folderCounts[f] = 0);
-                    }
+                    if (!Array.isArray(customFolders)) customFolders = [];
 
+                    // 1. 初始化当前 Tab 专属的文件夹名字
+                    customFolders.forEach(f => {
+                        if (f) folderCounts[f] = 0;
+                    });
+
+                    // 2. 统计数量：只有当资产的 subCategory 在当前 Tab 的自定义列表内，或者属于'未分类'时才计数
+                    // 彻底防止其他 Tab 的垃圾残留 subCategory 数据跨模块泄露！
                     filtered.forEach(a => {
                         const fName = a.subCategory || '未分类';
-                        folderCounts[fName] = (folderCounts[fName] || 0) + 1;
+                        if (fName === '未分类' || customFolders.includes(fName)) {
+                            folderCounts[fName] = (folderCounts[fName] || 0) + 1;
+                        }
                     });
 
                     // Add Create Folder Cards (只保留一个“+ 创建新分类”单卡片)
