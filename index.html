@@ -3,22 +3,17 @@
 <html lang="zh-CN">
 <head>
 <script>
-    // PWA 增强：仅在显式触发强刷（?forceRefresh 或 localStorage 标记）时才清理 Service Worker 缓存破冰，
-    // 其余时刻保持 Service Worker 存活，从而保证 PWA 可正常“安装到主屏”。
+    // 每次加载都强制清理 Service Worker 和缓存,确保拿到最新代码
     (function () {
-        var force = /[?&]forceRefresh=1/.test(location.search) || (location.pathname.endsWith('/TavernCardHub-test/') && localStorage.getItem('RH_FORCE_REFRESH') === '1');
-        if (force) {
-            localStorage.removeItem('RH_FORCE_REFRESH');
-            if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.getRegistrations().then(function (regs) {
-                    for (var i = 0; i < regs.length; i++) regs[i].unregister();
-                });
-            }
-            if ('caches' in window) {
-                caches.keys().then(function (names) {
-                    for (var i = 0; i < names.length; i++) caches.delete(names[i]);
-                });
-            }
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function (regs) {
+                for (var i = 0; i < regs.length; i++) regs[i].unregister();
+            });
+        }
+        if ('caches' in window) {
+            caches.keys().then(function (names) {
+                for (var i = 0; i < names.length; i++) caches.delete(names[i]);
+            });
         }
     })();
     </script>
