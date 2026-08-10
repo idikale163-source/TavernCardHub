@@ -76,7 +76,9 @@ function formatFileSize(bytes) {
 
 function switchTab(tab, e) {
     currentTab = tab;
-    if (typeof currentFolderOpened !== 'undefined') currentFolderOpened = null;
+    currentFolderOpened = null;
+    const oldInput = document.getElementById('globalDirectFileInput');
+    if (oldInput) oldInput.remove();
     setTimeout(ensureCategoryImportUI, 0);
     closeDetailView();
     if (e && e.stopPropagation) e.stopPropagation();
@@ -2628,7 +2630,8 @@ function triggerGlobalDirectImport() {
         if (t) { t.click(); return; }
     }
     let input = document.getElementById('globalDirectFileInput');
-    if (!input) {
+    if (input) input.remove();
+    if (true) {
         input = document.createElement('input');
         input.type = 'file';
         input.id = 'globalDirectFileInput';
