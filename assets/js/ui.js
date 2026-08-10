@@ -2035,11 +2035,39 @@ function toggleSelectAsset(id, e) {
 }
 
 async function selectAllCurrentAssets() {
+    if (!currentFolderOpened) {
+        showToast('⚠️', '请先点进具体的小分类文件夹，再全选勾选！');
+        return;
+    }
     const assets = await getAllAssets();
-    if (selectedAssetIds.size === assets.length) {
-        selectedAssetIds.clear();
+    const categoryAssets = assets.filter(a => a.category === categoryStorageKey(currentTab));
+
+    let customFolders = [];
+    try {
+        const saved = localStorage.getItem('TAVERN_CUSTOM_FOLDERS_' + currentTab);
+        if (saved) customFolders = JSON.parse(saved);
+    } catch(e){}
+    if (!Array.isArray(customFolders)) customFolders = [];
+
+    // 精确锁定：只获取当前点进来的这个小文件夹内部的文件！
+    const curFolderAssets = categoryAssets.filter(a => {
+        const sub = a.subCategory || '未分类';
+        if (currentFolderOpened === '未分类') {
+            return sub === '未分类' || !sub || !customFolders.includes(sub);
+        } else {
+            return sub === currentFolderOpened;
+        }
+    });
+
+    const curIds = curFolderAssets.map(a => a.id);
+    if (curIds.length === 0) return;
+
+    const allSelected = curIds.every(id => selectedAssetIds.has(id));
+
+    if (allSelected) {
+        curIds.forEach(id => selectedAssetIds.delete(id));
     } else {
-        assets.forEach(a => selectedAssetIds.add(a.id));
+        curIds.forEach(id => selectedAssetIds.add(id));
     }
     renderBatchActionBar();
     renderItems();
