@@ -1205,7 +1205,21 @@ window.saveGalleryUrl = saveGalleryUrl;
                     return;
                 } else if (currentFolderOpened && !keyword) {
                     // Filter assets inside this folder
-                    const folderItems = filtered.filter(a => (a.subCategory || '未分类') === currentFolderOpened || (currentFolderOpened === '未分类' && (!a.subCategory || a.subCategory === '')));
+                    let customFoldersForFilter = [];
+                    try {
+                        const saved = localStorage.getItem('TAVERN_CUSTOM_FOLDERS_' + currentTab);
+                        if (saved) customFoldersForFilter = JSON.parse(saved);
+                    } catch(e){}
+                    if (!Array.isArray(customFoldersForFilter)) customFoldersForFilter = [];
+
+                    const folderItems = filtered.filter(a => {
+                        const sub = a.subCategory || '未分类';
+                        if (currentFolderOpened === '未分类') {
+                            return sub === '未分类' || !sub || !customFoldersForFilter.includes(sub);
+                        } else {
+                            return sub === currentFolderOpened;
+                        }
+                    });
                     filtered.length = 0;
                     folderItems.forEach(fi => filtered.push(fi));
 
