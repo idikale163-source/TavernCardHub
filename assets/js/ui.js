@@ -2819,6 +2819,54 @@ function toggleLinksPanel(){ const b=document.getElementById('linksPanelBody'); 
 window.toggleLinksPanel=toggleLinksPanel;
 
 function toggleThemeBuilderPanel(){ const b=document.getElementById('themeBuilderBody'); const c=document.getElementById('themeBuilderChevron'); if(b){ b.classList.toggle('hidden'); populateLinkCategorySelect(); if(c)c.textContent=b.classList.contains('hidden')?'⌄':'⌃'; } }
+
+
+        // 【一键净化】扫描所有大分类的 LocalStorage 白名单,把不在白名单内的 subCategory 资产归到未分类
+        window.cleanupCrossCategorySubCategory = async function () {
+            const cats = ['cards', 'worldbooks', 'docs', 'gallery', 'themes', 'emojis', 'regex', 'links'];
+            const allAssets = await getAllAssets();
+            const cleaned = {};
+            cats.forEach(cat => cleaned[cat] = 0);
+            const newAssets = allAssets.map(a => {
+                if (a.subCategory && a.subCategory !== '未分类' && cats.includes(a.category)) {
+                    const saved = localStorage.getItem('TAVERN_CUSTOM_FOLDERS_' + a.category);
+                    let whitelist = [];
+                    try { if (saved) whitelist = JSON.parse(saved); } catch(e){}
+                    if (!Array.isArray(whitelist)) whitelist = [];
+                    if (!whitelist.includes(a.subCategory)) {
+                        cleaned[a.category] = (cleaned[a.category] || 0) + 1;
+                        return Object.assign({}, a, { subCategory: null });
+                    }
+                }
+                return a;
+            });
+            // 写回 IndexedDB
+            const tx = db.transaction('assets', 'readwrite');
+            const store = tx.objectStore('assets');
+            newAssets.forEach(a => store.put(a));
+            await new Promise((resolve) => { tx.oncomplete = resolve; });
+            allAssetsCache = null;
+            updateBadges();
+            await renderItems();
+            console.log('[CLEAN] 每个分类被归位的资产数:', cleaned);
+            showToast('✅', '跨分类污染已净化,所有 subCategory 不在白名单的资产已归到未分类');
+            return cleaned;
+        };
+
+        // 【一键回传】清理后,把所有本地数据全量推送到云端覆盖污染
+        window.pushCleanupToCloud = async function () {
+            if (!supabaseClient) { alert('未配置 Supabase'); return; }
+            if (!confirm('确定要把本地净化后的数据全量推送到云端覆盖吗?')) return;
+            showToast('📤', '正在全量推送到云端覆盖污染...');
+            const allAssets = await getAllAssets();
+            for (let a of allAssets) {
+                if (a.id === '___CUSTOM_FOLDERS_CONFIG___' || a.id === '___API_KEYS_CONFIG___') continue;
+                await syncAssetToCloudSilent(a);
+            }
+            await syncCustomFoldersToCloudSilent();
+            await syncApiKeysToCloudSilent();
+            showToast('✅', '云端污染已覆盖,本地净化数据已全量回传');
+        };
 window.toggleThemeBuilderPanel=toggleThemeBuilderPanel;
 
         // 一键重置所有大分类的文件夹白名单,从 IndexedDB 资产实际数据重建,避免 LocalStorage 历史脏数据污染
