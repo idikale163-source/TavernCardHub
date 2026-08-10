@@ -267,39 +267,19 @@ async function processFile(file, targetCategory = currentTab) {
             const raw=await file.arrayBuffer(); await saveAsset({id,category,subCategory:folder,name:cleanImportName(file.name),fileType:ext||'bin',rawBuffer:raw,createdAt:Date.now()}); return;
         }
         function parseEmojiTextLines(text) {
-            if (!text || !text.trim()) return [];
-            let results = [];
-            // 尝试 JSON 格式解析（兼容各类导出导出的表情 JSON）
-            try {
-                const jsonObj = JSON.parse(text);
-                const list = Array.isArray(jsonObj) ? jsonObj : (jsonObj.emojiList || jsonObj.emojis || jsonObj.data);
-                if (Array.isArray(list) && list.length > 0) {
-                    return list.map((item, idx) => ({
-                        id: item.id || ('em_' + idx + '_' + Math.random().toString(36).substr(2, 5)),
-                        name: item.name || item.title || item.code || `表情 #${idx + 1}`,
-                        url: item.url || item.src || item.link || '',
-                        code: item.code || ''
-                    })).filter(x => x.url);
-                }
-            } catch(e){}
-
-            // 文本行模式匹配（通用格式：描述：URL 或 纯 URL）
             const lines = text.split(/\r?\n/);
-            const urlRegex = /(https?:\/\/[^\s"'<>\]]+)/gi;
-            let count = 0;
+            const results = [];
+            const urlRegex = /(https?:\/\/[^\s]+)/i;
             for (let idx = 0; idx < lines.length; idx++) {
                 let line = lines[idx].trim();
                 if (!line) continue;
-                const matches = line.match(urlRegex);
-                if (matches) {
-                    for (let matchUrl of matches) {
-                        count++;
-                        let cleanUrl = matchUrl.replace(/["'>\)]+$/, '');
-                        let namePart = line.replace(matchUrl, '').replace(/[:：\s,，\--\|"']+$/g, '').replace(/^[:：\s,，\--\|"']+/g, '').trim();
-                        let code = cleanUrl.split('/').pop().split('?')[0] || '';
-                        if (!namePart) namePart = code || `表情 #${count}`;
-                        results.push({ id: 'em_' + count + '_' + Math.random().toString(36).substr(2, 5), name: namePart, url: cleanUrl, code });
-                    }
+                const match = line.match(urlRegex);
+                if (match) {
+                    const url = match[1];
+                    let namePart = line.replace(url, '').replace(/[:：\s,，\--]+$/, '').replace(/^[:：\s,，\--]+/, '').trim();
+                    const code = url.split('/').pop().split('?')[0] || '';
+                    if (!namePart) namePart = code || `表情 #${idx + 1}`;
+                    results.push({ id: 'em_' + idx + '_' + Math.random().toString(36).substr(2, 5), name: namePart, url, code });
                 }
             }
             return results;
@@ -2056,20 +2036,10 @@ function toggleSelectAsset(id, e) {
 
 async function selectAllCurrentAssets() {
     const assets = await getAllAssets();
-    // 严格限制范围：只获取属于当前大分类(currentTab)的资产
-    const categoryAssets = assets.filter(a => a.category === categoryStorageKey(currentTab));
-    // 如果在文件夹内部，进一步收窄范围
-    const curTabAssets = currentFolderOpened 
-        ? categoryAssets.filter(a => (a.subCategory || '未分类') === currentFolderOpened)
-        : categoryAssets;
-
-    const curIds = curTabAssets.map(a => a.id);
-    const allSelected = curIds.length > 0 && curIds.every(id => selectedAssetIds.has(id));
-
-    if (allSelected) {
-        curIds.forEach(id => selectedAssetIds.delete(id));
+    if (selectedAssetIds.size === assets.length) {
+        selectedAssetIds.clear();
     } else {
-        curIds.forEach(id => selectedAssetIds.add(id));
+        assets.forEach(a => selectedAssetIds.add(a.id));
     }
     renderBatchActionBar();
     renderItems();
