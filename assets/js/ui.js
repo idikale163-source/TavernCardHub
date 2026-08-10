@@ -501,7 +501,7 @@ async function processFile(file, targetCategory = currentTab) {
                 localAssets.forEach(a => localMap.set(a.id, a.createdAt || 0));
 
                 // 重点优化：只选择元数据，杜绝 select('*') 一次性抓取大文件造成的 Supabase 10 秒超时（statement timeout）
-                const { data, error } = await supabaseClient.from('tavern_assets').select('id, category, name, file_type, created_at, subCategory');
+                const { data, error } = await supabaseClient.from('tavern_assets').select('id, category, name, file_type, created_at');
                 if (error) { showToast('❌', `拉取失败: ${error.message}`); document.getElementById('cloudStatusBadge').innerText = '已连接'; return; }
 
                 if (data && data.length > 0) {
