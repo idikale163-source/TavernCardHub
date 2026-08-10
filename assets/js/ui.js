@@ -396,8 +396,10 @@ async function processFile(file, targetCategory = currentTab) {
                     await syncAssetToCloudSilent(asset);
                     count++;
                 }
+                await syncApiKeysToCloudSilent();
+                await syncCustomFoldersToCloudSilent();
                 document.getElementById('cloudStatusBadge').innerText = '已覆盖';
-                showToast('🎉', `强行全量覆盖备份完成！已将 ${count} 项资产覆盖推送到云端！`);
+                showToast('🎉', `强行全量覆盖备份完成！已将 ${count} 项资产 + API 密钥 + 文件夹名册覆盖推送到云端！`);
             } catch(e) {
                 showToast('❌', '覆盖同步失败，请检查网络');
             }
