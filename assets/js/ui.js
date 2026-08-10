@@ -1282,6 +1282,20 @@ window.saveGalleryUrl = saveGalleryUrl;
                     } catch(e){}
                     if (!Array.isArray(customFolders)) customFolders = [];
 
+                    // 【终极兜底】扫描当前分类所有资产，发现有没在白名单里的小分类名，直接静默补建进去！
+                    let needSave = false;
+                    filtered.forEach(a => {
+                        if (a.subCategory && a.subCategory !== '未分类' && a.subCategory.trim() !== '') {
+                            if (!customFolders.includes(a.subCategory)) {
+                                customFolders.push(a.subCategory);
+                                needSave = true;
+                            }
+                        }
+                    });
+                    if (needSave) {
+                        localStorage.setItem('TAVERN_CUSTOM_FOLDERS_' + currentTab, JSON.stringify(customFolders));
+                    }
+
                     // 1. 初始化当前 Tab 专属的文件夹名字
                     customFolders.forEach(f => {
                         if (f) folderCounts[f] = 0;
