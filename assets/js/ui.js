@@ -448,7 +448,7 @@ async function processFile(file, targetCategory = currentTab) {
             }
         }
 
-        async function syncAssetToCloudSilent(asset) {
+                async function syncAssetToCloudSilent(asset) {
             if (!supabaseClient) return;
             try {
                 let base64Buf = null;
@@ -457,8 +457,41 @@ async function processFile(file, targetCategory = currentTab) {
                     for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
                     base64Buf = btoa(binary);
                 }
-                const { error } = await supabaseClient.from('tavern_assets').upsert({ id: asset.id, category: asset.category, name: asset.name, file_type: asset.fileType, card_data: asset.cardData || { emojiList: asset.emojiList } || null, raw_text: asset.rawText || null, raw_buffer_base64: base64Buf, created_at: asset.createdAt });
-                if (!error) { showToast('⚡', `“${asset.name}”已增量同步至云端`); }
+                // 关键修复:把 subCategory 和 card_data 一起塞进 upsert
+                const cardData = asset.cardData || {};
+                if (asset.subCategory && !cardData.subCategory) {
+                    cardData.subCategory = asset.subCategory;
+                }
+                const { error } = await supabaseClient.from('tavern_assets').upsert({
+                    id: asset.id,
+                    category: asset.category,
+                    name: asset.name,
+                    file_type: asset.fileType,
+                    card_data: cardData,
+                    raw_text: asset.rawText || null,
+                    raw_buffer_base64: base64Buf
+                });
+                if (!error) { showToast('⚡', `"${asset.name}"已增量同步至云端`); }
+            } catch(e){}
+        }
+
+        async function syncCustomFoldersToCloudSilent() {
+            if (!supabaseClient) return;
+            try {
+                const folders = {};
+                const cats = ['cards', 'worldbooks', 'docs', 'gallery', 'themes', 'emojis', 'regex', 'links'];
+                for (let cat of cats) {
+                    const saved = localStorage.getItem('TAVERN_CUSTOM_FOLDERS_' + cat);
+                    if (saved) folders[cat] = JSON.parse(saved);
+                }
+                const { error } = await supabaseClient.from('tavern_assets').upsert({
+                    id: '___CUSTOM_FOLDERS_CONFIG___',
+                    category: 'config',
+                    name: '__custom_folders_registry__',
+                    file_type: 'config',
+                    card_data: folders
+                });
+                if (error) console.error('sync folders err:', error);
             } catch(e){}
         }
 
@@ -485,6 +518,7 @@ async function processFile(file, targetCategory = currentTab) {
                 }
 
                 await syncApiKeysToCloudSilent();
+                await syncCustomFoldersToCloudSilent();
                 document.getElementById('cloudStatusBadge').innerText = '同步完成';
                 showToast('✅', `增量同步完成！本次仅上传了 ${syncedCount} 个变动资产`);
             } catch(e) { showToast('❌', '增量同步失败，请检查网络'); }
@@ -610,6 +644,7 @@ async function processFile(file, targetCategory = currentTab) {
                                     fileType: row.file_type,
                                     rawBuffer: buffer,
                                     cardData: row.card_data,
+                                    subCategory: row.card_data?.subCategory || dataObj.subCategory || null,
                                     emojiList: row.card_data?.emojiList || null,
                                     rawText: row.raw_text,
                                     firstMes: dataObj.first_mes || '',
