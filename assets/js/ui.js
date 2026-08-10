@@ -2821,6 +2821,36 @@ window.toggleLinksPanel=toggleLinksPanel;
 function toggleThemeBuilderPanel(){ const b=document.getElementById('themeBuilderBody'); const c=document.getElementById('themeBuilderChevron'); if(b){ b.classList.toggle('hidden'); populateLinkCategorySelect(); if(c)c.textContent=b.classList.contains('hidden')?'⌄':'⌃'; } }
 window.toggleThemeBuilderPanel=toggleThemeBuilderPanel;
 
+        // 一键重置所有大分类的文件夹白名单,从 IndexedDB 资产实际数据重建,避免 LocalStorage 历史脏数据污染
+        window.resetFolderRegistry = async function () {
+            const cats = ['cards', 'worldbooks', 'docs', 'gallery', 'themes', 'emojis', 'regex', 'links'];
+            const allAssets = await getAllAssets();
+            const folderMap = {};
+            allAssets.forEach(a => {
+                if (a.subCategory && typeof a.subCategory === 'string' && a.subCategory.trim() !== '' && a.subCategory !== '未分类' && a.subCategory !== 'undefined' && a.subCategory !== 'null') {
+                    if (!folderMap[a.category]) folderMap[a.category] = [];
+                    if (!folderMap[a.category].includes(a.subCategory)) folderMap[a.category].push(a.subCategory);
+                }
+            });
+            cats.forEach(cat => {
+                const key = 'TAVERN_CUSTOM_FOLDERS_' + cat;
+                if (folderMap[cat]) localStorage.setItem(key, JSON.stringify(folderMap[cat]));
+                else localStorage.removeItem(key);
+            });
+            const customCats = [];
+            Object.keys(localStorage).forEach(k => {
+                const m = k.match(/^TAVERN_CUSTOM_FOLDERS_(.+)$/);
+                if (m && !cats.includes(m[1])) customCats.push({ key: m[1], list: JSON.parse(localStorage.getItem(k) || '[]') });
+            });
+            allAssetsCache = null;
+            updateBadges();
+            await renderItems();
+            console.log('[RESET] 重建白名单结果:', folderMap, '自定义大分类:', customCats);
+            showToast('✅', '文件夹白名单已从 IndexedDB 实际数据重建');
+            return folderMap;
+        };
+
+
 
 // 全局智能直连导入器
 function triggerGlobalDirectImport() {
