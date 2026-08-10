@@ -2880,6 +2880,42 @@ function toggleThemeBuilderPanel(){ const b=document.getElementById('themeBuilde
         };
 window.toggleThemeBuilderPanel=toggleThemeBuilderPanel;
 
+        window.diagnoseFolderRegistry = async function () {
+            const cats = ['cards', 'worldbooks', 'docs', 'gallery', 'themes', 'emojis', 'regex', 'links'];
+            const allAssets = await getAllAssets();
+            const report = [];
+            report.push('=== LocalStorage 白名单 vs 资产 subCategory 实际值 ===');
+            cats.forEach(cat => {
+                const saved = localStorage.getItem('TAVERN_CUSTOM_FOLDERS_' + cat);
+                const whitelist = saved ? JSON.parse(saved) : [];
+                const catAssets = allAssets.filter(a => a.category === cat);
+                const subCount = {};
+                catAssets.forEach(a => {
+                    const k = (a.subCategory === null || a.subCategory === undefined) ? 'NULL' : a.subCategory;
+                    subCount[k] = (subCount[k] || 0) + 1;
+                });
+                report.push('--- ' + cat + ' ---');
+                report.push('  LocalStorage 白名单: ' + JSON.stringify(whitelist));
+                report.push('  资产 subCategory 分布: ' + JSON.stringify(subCount));
+                report.push('  资产总数: ' + catAssets.length);
+            });
+            // 找现有的诊断面板,或者弹一个 alert
+            const existing = document.getElementById('diagFolderPanel');
+            if (existing) existing.remove();
+            const panel = document.createElement('div');
+            panel.id = 'diagFolderPanel';
+            panel.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;padding:16px;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.2);max-width:90vw;max-height:80vh;overflow:auto;z-index:99999;font-size:11px;color:#333;line-height:1.5;white-space:pre-wrap;font-family:monospace;';
+            panel.innerText = report.join('\n');
+            const closeBtn = document.createElement('button');
+            closeBtn.innerText = '关闭';
+            closeBtn.style.cssText = 'position:sticky;top:0;right:0;float:right;background:#d88c9a;color:#fff;border:none;padding:4px 12px;border-radius:6px;cursor:pointer;';
+            closeBtn.onclick = () => panel.remove();
+            panel.prepend(closeBtn);
+            document.body.appendChild(panel);
+            return report.join('\n');
+        };
+
+
         // 一键重置所有大分类的文件夹白名单,从 IndexedDB 资产实际数据重建,避免 LocalStorage 历史脏数据污染
         window.resetFolderRegistry = async function () {
             const cats = ['cards', 'worldbooks', 'docs', 'gallery', 'themes', 'emojis', 'regex', 'links'];
