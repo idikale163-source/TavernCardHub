@@ -1197,7 +1197,7 @@ window.saveGalleryUrl = saveGalleryUrl;
                                 </div>
                             </div>
                             <div class="flex items-center gap-2 shrink-0">
-                                ${deleteBtnHtml}
+                                ${editBtnHtml}${deleteBtnHtml}
                                 <i data-lucide="chevron-right" class="w-4 h-4 text-[#a89294]"></i>
                             </div>
                         `;
@@ -2979,3 +2979,55 @@ window.triggerDocPasteModalPrompt = triggerDocPasteModalPrompt;
             showToast('📁', `已成功将 ${count} 项资源移入当前模块的小分类 “${targetFolder}”`);
         }
 window.promptBatchMoveToFolder = promptBatchMoveToFolder;
+
+
+async function renameFolder(oldName) {
+    if (!oldName || oldName === '未分类') {
+        showToast('⚠️', '“未分类”为系统默认分类，无法重命名！');
+        return;
+    }
+    const newName = prompt(`请输入分类“${oldName}”的新名称：`, oldName);
+    if (!newName || !newName.trim() || newName.trim() === oldName) return;
+    const cleanNew = newName.trim();
+
+    showToast('⌛', `正在将分类“${oldName}”重命名为“${cleanNew}”...`);
+
+    try {
+        // 1. 更新当前 Tab 的 localStorage 文件夹列表
+        const key = 'TAVERN_CUSTOM_FOLDERS_' + currentTab;
+        let customFolders = [];
+        try {
+            const saved = localStorage.getItem(key);
+            if (saved) customFolders = JSON.parse(saved);
+        } catch(e){}
+        if (!Array.isArray(customFolders)) customFolders = [];
+        const idx = customFolders.indexOf(oldName);
+        if (idx !== -1) {
+            customFolders[idx] = cleanNew;
+        } else {
+            customFolders.unshift(cleanNew);
+        }
+        localStorage.setItem(key, JSON.stringify(customFolders));
+
+        // 2. 更新 IndexedDB 表中所有该大分类下属于 oldName 的资产 subCategory
+        const all = await getAllAssets();
+        const toUpdate = all.filter(a => a.category === currentTab && a.subCategory === oldName);
+        for (let item of toUpdate) {
+            item.subCategory = cleanNew;
+            await saveAsset(item);
+            if (supabaseClient) {
+                try { await supabaseClient.from('tavern_assets').upsert(item); } catch(e){}
+            }
+        }
+
+        allAssetsCache = null;
+        if (typeof updateBadges === 'function') updateBadges();
+        await renderItems();
+        showToast('🎉', `分类已成功更名为“${cleanNew}”！`);
+    } catch(err) {
+        console.error('Rename folder failed', err);
+        showToast('❌', `重命名失败: ${err.message||err}`);
+    }
+}
+window.renameFolder = renameFolder;
+
