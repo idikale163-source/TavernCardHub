@@ -495,40 +495,68 @@ async function processFile(file, targetCategory = currentTab) {
             if (!supabaseClient) { alert('未配置 Supabase 云端，无法恢复。请在侧边栏填入 URL 与 Key！'); return; }
             document.getElementById('cloudStatusBadge').innerText = '恢复中...';
             showToast('🔄', '正在对比拉取云端新增资产...');
-
             try {
                 const localAssets = await getAllAssets();
                 const localMap = new Map();
                 localAssets.forEach(a => localMap.set(a.id, a.createdAt || 0));
 
-                const { data, error } = await supabaseClient.from('tavern_assets').select('*');
-                if (error) { showToast('❌', `拉取失败: ${error.message}`); return; }
+                // 重点优化：只选择元数据，杜绝 select('*') 一次性抓取大文件造成的 Supabase 10 秒超时（statement timeout）
+                const { data, error } = await supabaseClient.from('tavern_assets').select('id, category, name, file_type, created_at, subCategory');
+                if (error) { showToast('❌', `拉取失败: ${error.message}`); document.getElementById('cloudStatusBadge').innerText = '已连接'; return; }
 
                 if (data && data.length > 0) {
-                    let restoredCount = 0;
+                    const idsToFetch = [];
                     for (let row of data) {
                         const localTimestamp = localMap.get(row.id);
                         const rowTimestamp = row.created_at || 0;
-
                         if (localTimestamp === undefined || rowTimestamp > localTimestamp) {
-                            let buffer = null;
-                            if (row.raw_buffer_base64) {
-                                const binary = atob(row.raw_buffer_base64), bytes = new Uint8Array(binary.length);
-                                for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-                                buffer = bytes.buffer;
+                            idsToFetch.push(row.id);
+                        }
+                    }
+
+                    if (idsToFetch.length === 0) {
+                        showToast('🎉', '本地资产已是最新，无须从云端同步！');
+                        document.getElementById('cloudStatusBadge').innerText = '已连接';
+                        return;
+                    }
+
+                    showToast('⌛', `发现 ${idsToFetch.length} 个新变动资产，正在分批同步...`);
+                    let restoredCount = 0;
+                    // 分批（每批 10 个）拉取完整数据，完美避开 10 秒 Timeout
+                    const batchSize = 10;
+                    for (let i = 0; i < idsToFetch.length; i += batchSize) {
+                        const batchIds = idsToFetch.slice(i, i + batchSize);
+                        const { data: batchData, error: batchErr } = await supabaseClient
+                            .from('tavern_assets')
+                            .select('*')
+                            .in('id', batchIds);
+
+                        if (batchErr) {
+                            console.error('Batch fetch error:', batchErr);
+                            continue;
+                        }
+
+                        if (batchData) {
+                            for (let row of batchData) {
+                                let buffer = null;
+                                if (row.raw_buffer_base64) {
+                                    const binary = atob(row.raw_buffer_base64), bytes = new Uint8Array(binary.length);
+                                    for (let j = 0; j < binary.length; j++) bytes[j] = binary.charCodeAt(j);
+                                    buffer = bytes.buffer;
+                                }
+                                const dataObj = row.card_data?.data || row.card_data || {};
+                                const asset = { id: row.id, category: row.category, subCategory: row.subCategory || '', name: row.name, fileType: row.file_type, rawBuffer: buffer, cardData: row.card_data, emojiList: row.card_data?.emojiList || null, rawText: row.raw_text, firstMes: dataObj.first_mes || '', alternateGreetings: dataObj.alternate_greetings || [], personality: extractPersonalityDeep(row.card_data || {}), worldbook: dataObj.character_book || (row.category === 'worldbooks' ? row.card_data : null), regexScripts: dataObj.extensions?.regex_scripts || (row.category === 'regex' ? row.card_data : null), createdAt: row.created_at || Date.now() };
+                                
+                                const tx = db.transaction('assets', 'readwrite');
+                                tx.objectStore('assets').put(asset);
+                                restoredCount++;
                             }
-                            const dataObj = row.card_data?.data || row.card_data || {};
-                            const asset = { id: row.id, category: row.category, name: row.name, fileType: row.file_type, rawBuffer: buffer, cardData: row.card_data, emojiList: row.card_data?.emojiList || null, rawText: row.raw_text, firstMes: dataObj.first_mes || '', alternateGreetings: dataObj.alternate_greetings || [], personality: extractPersonalityDeep(row.card_data || {}), worldbook: dataObj.character_book || (row.category === 'worldbooks' ? row.card_data : null), regexScripts: dataObj.extensions?.regex_scripts || (row.category === 'regex' ? row.card_data : null), createdAt: row.created_at || Date.now() };
-                            
-                            const tx = db.transaction('assets', 'readwrite');
-                            tx.objectStore('assets').put(asset);
-                            restoredCount++;
                         }
                     }
                     updateBadges(); renderItems();
-                    showToast('🎉', `增量拉取完毕！仅恢复了 ${restoredCount} 个新增/变动资产！`);
+                    showToast('🎉', `云端增量同步完毕！成功增量恢复 ${restoredCount} 个资产！`);
                 } else { showToast('ℹ️', '云端数据库为空'); }
-            } catch(e){ showToast('❌', '恢复失败，请检查 Supabase 配置'); }
+            } catch(e){ console.error(e); showToast('❌', '恢复失败，请检查 Supabase 配置'); }
             document.getElementById('cloudStatusBadge').innerText = '已连接';
         }
 
