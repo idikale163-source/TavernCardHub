@@ -2940,3 +2940,139 @@ async function triggerDocPasteModalPrompt() {
     };
 }
 window.triggerDocPasteModalPrompt = triggerDocPasteModalPrompt;
+
+
+// 本地 ZIP 完整导出与恢复逻辑
+async function exportFullZipBackup() {
+    if (typeof JSZip === 'undefined') {
+        showToast('❌', 'ZIP 压缩组件未就绪，请刷新页面重试');
+        return;
+    }
+    showToast('⌛', '正在打包全站本地资产，请稍候...');
+    try {
+        const zip = new JSZip();
+        const allAssets = await getAllAssets();
+        
+        // 1. 保存所有自定义分类名称
+        const customFolders = {};
+        const categories = ['cards', 'worldbooks', 'emojis', 'regex', 'docs', 'gallery', 'themes', 'links'];
+        categories.forEach(cat => {
+            const saved = localStorage.getItem('TAVERN_CUSTOM_FOLDERS_' + cat);
+            if (saved) {
+                try { customFolders[cat] = JSON.parse(saved); } catch(e){}
+            }
+        });
+
+        // 2. 剥离 rawBuffer，将 JSON 文本序列化
+        const manifestData = {
+            version: "1.0",
+            exportedAt: Date.now(),
+            customFolders: customFolders,
+            assets: []
+        };
+
+        const filesFolder = zip.folder("files");
+
+        for (let i = 0; i < allAssets.length; i++) {
+            const a = allAssets[i];
+            const metaAsset = { ...a };
+            if (metaAsset.rawBuffer) {
+                const filename = `asset_${a.id}.${a.fileType || 'bin'}`;
+                filesFolder.file(filename, a.rawBuffer);
+                delete metaAsset.rawBuffer;
+                metaAsset._fileRef = filename;
+            }
+            manifestData.assets.push(metaAsset);
+        }
+
+        zip.file("manifest.json", JSON.stringify(manifestData, null, 2));
+
+        const content = await zip.generateAsync({ type: "blob" });
+        const nowStr = new Date().toISOString().slice(0, 10);
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(content);
+        link.download = `ResourceHub_Backup_${nowStr}.zip`;
+        link.click();
+        showToast('🎉', `全站 ZIP 备份已导出（共包含 ${allAssets.length} 项资产）！`);
+    } catch(err) {
+        console.error('Export zip failed:', err);
+        showToast('❌', '导出 ZIP 失败: ' + err.message);
+    }
+}
+window.exportFullZipBackup = exportFullZipBackup;
+
+function triggerImportZipBackup() {
+    let zipInput = document.getElementById('zipBackupFileInput');
+    if (!zipInput) {
+        zipInput = document.createElement('input');
+        zipInput.type = 'file';
+        zipInput.id = 'zipBackupFileInput';
+        zipInput.accept = '.zip';
+        zipInput.className = 'hidden';
+        document.body.appendChild(zipInput);
+        zipInput.onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            if (typeof JSZip === 'undefined') {
+                showToast('❌', 'ZIP 解选组件未就绪');
+                return;
+            }
+            showToast('⌛', '正在读取并解析 ZIP 备份...');
+            try {
+                const zip = await JSZip.loadAsync(file);
+                const manifestFile = zip.file("manifest.json");
+                if (!manifestFile) {
+                    showToast('❌', '无效的备份包：找不到 manifest.json');
+                    return;
+                }
+                const manifestText = await manifestFile.async("string");
+                const manifest = JSON.parse(manifestText);
+
+                if (!manifest.assets || !Array.isArray(manifest.assets)) {
+                    showToast('❌', '备份文件格式错误');
+                    return;
+                }
+
+                // 还原自定义分类文件夹
+                if (manifest.customFolders) {
+                    for (let cat in manifest.customFolders) {
+                        const key = 'TAVERN_CUSTOM_FOLDERS_' + cat;
+                        const folders = manifest.customFolders[cat];
+                        if (Array.isArray(folders)) {
+                            localStorage.setItem(key, JSON.stringify(folders));
+                        }
+                    }
+                }
+
+                let importedCount = 0;
+                for (let a of manifest.assets) {
+                    let buffer = null;
+                    if (a._fileRef) {
+                        const fileInZip = zip.file(`files/${a._fileRef}`);
+                        if (fileInZip) {
+                            buffer = await fileInZip.async("arraybuffer");
+                        }
+                        delete a._fileRef;
+                    }
+                    a.rawBuffer = buffer;
+
+                    const tx = db.transaction('assets', 'readwrite');
+                    tx.objectStore('assets').put(a);
+                    importedCount++;
+                }
+
+                allAssetsCache = null;
+                if (typeof updateBadges === 'function') updateBadges();
+                await renderItems();
+                showToast('🎉', `本地 ZIP 恢复成功！已导入 ${importedCount} 项资产！`);
+            } catch(err) {
+                console.error('Import ZIP failed:', err);
+                showToast('❌', 'ZIP 导入失败: ' + err.message);
+            } finally {
+                e.target.value = '';
+            }
+        };
+    }
+    zipInput.click();
+}
+window.triggerImportZipBackup = triggerImportZipBackup;
