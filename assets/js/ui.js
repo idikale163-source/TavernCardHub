@@ -447,9 +447,26 @@ async function processFile(file, targetCategory = currentTab) {
                                 continue;
                             }
                             const asset = { id: row.id, category: row.category, name: row.name, fileType: row.file_type, rawBuffer: buffer, cardData: row.card_data, subCategory: row.card_data?.subCategory || dataObj.subCategory || null, emojiList: row.card_data?.emojiList || null, rawText: row.raw_text, firstMes: dataObj.first_mes || '', alternateGreetings: dataObj.alternate_greetings || [], personality: extractPersonalityDeep(row.card_data || {}), worldbook: dataObj.character_book || (row.category === 'worldbooks' ? row.card_data : null), regexScripts: dataObj.extensions?.regex_scripts || (row.category === 'regex' ? row.card_data : null), createdAt: row.created_at || Date.now() };
-                            
+
                             const putTx = db.transaction('assets', 'readwrite');
                             putTx.objectStore('assets').put(asset);
+                        }
+                        // 【关键】覆盖恢复后,自动扫描所有资产的 subCategory,动态补建每个大分类下缺失的文件夹白名单
+                        const allRestored = await getAllAssets();
+                        const folderMap = {};
+                        allRestored.forEach(a => {
+                            if (a.subCategory && a.subCategory !== '未分类') {
+                                if (!folderMap[a.category]) folderMap[a.category] = new Set();
+                                folderMap[a.category].add(a.subCategory);
+                            }
+                        });
+                        for (let cat in folderMap) {
+                            const key = 'TAVERN_CUSTOM_FOLDERS_' + cat;
+                            let list = [];
+                            try { const s = localStorage.getItem(key); if (s) list = JSON.parse(s); } catch(e){}
+                            if (!Array.isArray(list)) list = [];
+                            folderMap[cat].forEach(name => { if (!list.includes(name)) list.push(name); });
+                            localStorage.setItem(key, JSON.stringify(list));
                         }
                         allAssetsCache = null;
                         updateBadges(); renderItems();
