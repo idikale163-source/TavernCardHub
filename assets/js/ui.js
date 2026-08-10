@@ -1150,12 +1150,13 @@ window.saveGalleryUrl = saveGalleryUrl;
                         let isFolderLongPress = false;
 
                         const startFolderPress = (e) => {
+                            if (fName === '未分类') return;
                             isFolderLongPress = false;
                             folderLongPressTimer = setTimeout(() => {
                                 isFolderLongPress = true;
                                 if (navigator.vibrate) try { navigator.vibrate(50); } catch(err){}
-                                deleteEntireFolder(fName, cnt);
-                            }, 500);
+                                renameFolder(fName);
+                            }, 600);
                         };
 
                         const cancelFolderPress = () => {
@@ -1178,6 +1179,11 @@ window.saveGalleryUrl = saveGalleryUrl;
                             openFolder(fName);
                         };
 
+                        const editBtnHtml = fName !== '未分类' 
+                            ? `<button onclick="event.stopPropagation(); renameFolder('${fName}');" title="重命名分类" class="w-5 h-5 rounded-full bg-[#fdf4f5] hover:bg-[#f8eeee] text-[#b86b7a] flex items-center justify-center transition shadow-2xs mr-1">
+                                <i data-lucide="edit-2" class="w-3 h-3"></i>
+                               </button>` 
+                            : '';
                         const deleteBtnHtml = fName !== '未分类' 
                             ? `<button onclick="event.stopPropagation(); deleteEntireFolder('${fName}', ${cnt});" title="删除分类文件夹" class="w-5 h-5 rounded-full bg-[#f8eeee] hover:bg-[#f2dadc] text-[#b86b7a] flex items-center justify-center transition shadow-2xs">
                                 <i data-lucide="trash-2" class="w-3 h-3"></i>
