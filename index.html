@@ -1,19 +1,26 @@
-<!-- BUILD_VER_STAMP: 1786356921 -->
+<!-- BUILD_VER_STAMP: 1786356913 -->
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <script>
-    // 强制清理 Service Worker 强缓存破冰逻辑
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(regs => {
-            for (let reg of regs) reg.unregister();
-        });
-    }
-    if ('caches' in window) {
-        caches.keys().then(names => {
-            for (let name of names) caches.delete(name);
-        });
-    }
+    // PWA 增强：仅在显式触发强刷（?forceRefresh 或 localStorage 标记）时才清理 Service Worker 缓存破冰，
+    // 其余时刻保持 Service Worker 存活，从而保证 PWA 可正常“安装到主屏”。
+    (function () {
+        var force = /[?&]forceRefresh=1/.test(location.search) || (location.pathname.endsWith('/TavernCardHub-test/') && localStorage.getItem('RH_FORCE_REFRESH') === '1');
+        if (force) {
+            localStorage.removeItem('RH_FORCE_REFRESH');
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(function (regs) {
+                    for (var i = 0; i < regs.length; i++) regs[i].unregister();
+                });
+            }
+            if ('caches' in window) {
+                caches.keys().then(function (names) {
+                    for (var i = 0; i < names.length; i++) caches.delete(names[i]);
+                });
+            }
+        }
+    })();
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -831,7 +838,7 @@
     <script src="assets/js/core.js?v=202608061005"></script>
     <script src="assets/js/sync.js?v=202608061005"></script>
     <script src="assets/js/apikeys.js?v=202608061005"></script>
-    <script src="assets/js/ui.js?v=1786356921"></script>
+    <script src="assets/js/ui.js?v=1786356913"></script>
     <script src="assets/js/links.js?v=202608061005"></script>
     <script src="assets/js/font.js?v=202608061005"></script>
 </body>
