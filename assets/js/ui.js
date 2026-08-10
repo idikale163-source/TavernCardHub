@@ -2903,3 +2903,56 @@ async function triggerDocPasteModalPrompt() {
     };
 }
 window.triggerDocPasteModalPrompt = triggerDocPasteModalPrompt;
+
+        async function promptBatchMoveToFolder() {
+            const folderName = prompt('请输入目标分类名称（输入新名字可直接新建）：');
+            if (!folderName || !folderName.trim()) return;
+            const targetFolder = folderName.trim();
+
+            // 1. 确保将新输入的文件夹名称持久化保存到当前 Tab 的自定义文件夹列表
+            const key = 'TAVERN_CUSTOM_FOLDERS_' + currentTab;
+            let customFolders = [];
+            try {
+                const saved = localStorage.getItem(key);
+                if (saved) customFolders = JSON.parse(saved);
+            } catch(e){}
+            if (!Array.isArray(customFolders)) customFolders = [];
+            if (!customFolders.includes(targetFolder)) {
+                customFolders.unshift(targetFolder);
+                localStorage.setItem(key, JSON.stringify(customFolders));
+            }
+
+            // 2. 只针对【勾选选中的资产】或【当前文件夹下的资产】进行精确移动，绝对不越界跨分类
+            const assets = await getAllAssets();
+            const curAssets = assets.filter(a => a.category === currentTab);
+            let count = 0;
+
+            if (selectedAssetIds && selectedAssetIds.size > 0) {
+                // 如果在多选状态下，只移动勾选的这几个资产
+                for (let a of curAssets) {
+                    if (selectedAssetIds.has(a.id)) {
+                        a.subCategory = targetFolder;
+                        await saveAsset(a);
+                        count++;
+                    }
+                }
+                selectedAssetIds.clear();
+                isMultiSelectMode = false;
+            } else {
+                // 如果在普通打开文件夹状态下，只移动当前打开文件夹里的资产
+                for (let a of curAssets) {
+                    if ((a.subCategory || '未分类') === currentFolderOpened) {
+                        a.subCategory = targetFolder;
+                        await saveAsset(a);
+                        count++;
+                    }
+                }
+            }
+
+            allAssetsCache = null;
+            if (typeof updateBadges === 'function') updateBadges();
+            currentFolderOpened = targetFolder;
+            await renderItems();
+            showToast('📁', `已成功将 ${count} 项资源移入当前模块的小分类 “${targetFolder}”`);
+        }
+window.promptBatchMoveToFolder = promptBatchMoveToFolder;
