@@ -518,7 +518,18 @@ async function processFile(file, targetCategory = currentTab) {
                     let hasApiConfig = false;
 
                     for (let row of cloudMeta) {
-                        if (row.id === '___API_KEYS_CONFIG___') {
+                                                        if (row.id === '___CUSTOM_FOLDERS_CONFIG___') {
+                                    if (row.card_data) {
+                                        for (let cat in row.card_data) {
+                                            const key = 'TAVERN_CUSTOM_FOLDERS_' + cat;
+                                            if (Array.isArray(row.card_data[cat])) {
+                                                localStorage.setItem(key, JSON.stringify(row.card_data[cat]));
+                                            }
+                                        }
+                                    }
+                                    continue;
+                                }
+                                if (row.id === '___API_KEYS_CONFIG___') {
                             hasApiConfig = true;
                             idsToFetch.push(row.id);
                             continue;
@@ -555,6 +566,17 @@ async function processFile(file, targetCategory = currentTab) {
                         if (batchData && batchData.length > 0) {
                             for (let row of batchData) {
                                 // 处理 API 密钥与自定义分类配置的专门恢复
+                                                                if (row.id === '___CUSTOM_FOLDERS_CONFIG___') {
+                                    if (row.card_data) {
+                                        for (let cat in row.card_data) {
+                                            const key = 'TAVERN_CUSTOM_FOLDERS_' + cat;
+                                            if (Array.isArray(row.card_data[cat])) {
+                                                localStorage.setItem(key, JSON.stringify(row.card_data[cat]));
+                                            }
+                                        }
+                                    }
+                                    continue;
+                                }
                                 if (row.id === '___API_KEYS_CONFIG___') {
                                     if (row.card_data) {
                                         if (Array.isArray(row.card_data.keys) && typeof saveStoredApiKeys === 'function') {
