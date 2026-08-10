@@ -1905,11 +1905,11 @@ if (currentTab === 'docs' || currentTab === 'regex') {
 
         function copyText(id) { const text = document.getElementById(id)?.innerText; if (text) { navigator.clipboard.writeText(text); showToast('📋', '文本已复制！'); } }
 
-        // Register PWA Service Worker
+        // Register PWA Service Worker (不主动卸载，保持 PWA 可安装)
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.getRegistrations().then(function(registrations) { for(let registration of registrations) { registration.unregister(); } });
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js').then(() => {
+                // 使用相对路径注册，兼容 GitHub Pages 子路径部署 (如 /TavernCardHub-test/)
+                navigator.serviceWorker.register('./sw.js').then(() => {
                     console.log('Service Worker Registered Successfully');
                 }).catch(err => {
                     console.log('Service Worker Registration Failed: ', err);
