@@ -98,7 +98,8 @@ function switchTab(tab, e) {
     const emojiPanel = document.getElementById('emojiExportBuilderPanel');
     const linksPanel = document.getElementById('linksBuilderPanel');
     const itemsGrid = document.getElementById('itemsContainer');
-    const searchBar = document.getElementById('searchInput')?.parentElement?.parentElement;
+    const searchInput = document.getElementById('searchInput');
+    const searchBar = searchInput ? (searchInput.parentElement ? searchInput.parentElement.parentElement : null) : null;
     
     if (fontsPanel) fontsPanel.classList.add('hidden');
     if (galleryPanel) galleryPanel.classList.add('hidden');
