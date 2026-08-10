@@ -695,6 +695,23 @@ async function processFile(file, targetCategory = currentTab) {
                         }
                     }
 
+                    // 增量恢复后,扫描所有本地资产的 subCategory,动态补建缺失的文件夹白名单
+                    const allRestored = await getAllAssets();
+                    const folderMap = {};
+                    allRestored.forEach(a => {
+                        if (a.subCategory && a.subCategory !== '未分类') {
+                            if (!folderMap[a.category]) folderMap[a.category] = new Set();
+                            folderMap[a.category].add(a.subCategory);
+                        }
+                    });
+                    for (let cat in folderMap) {
+                        const key = 'TAVERN_CUSTOM_FOLDERS_' + cat;
+                        let list = [];
+                        try { const s = localStorage.getItem(key); if (s) list = JSON.parse(s); } catch(e){}
+                        if (!Array.isArray(list)) list = [];
+                        folderMap[cat].forEach(name => { if (!list.includes(name)) list.push(name); });
+                        localStorage.setItem(key, JSON.stringify(list));
+                    }
                     if (typeof renderApiKeyList === 'function') renderApiKeyList();
                     if (typeof renderApiKeyCategoryPills === 'function') renderApiKeyCategoryPills();
                     updateBadges(); 
