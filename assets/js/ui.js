@@ -430,7 +430,21 @@ async function processFile(file, targetCategory = currentTab) {
                                 buffer = bytes.buffer;
                             }
                             const dataObj = row.card_data?.data || row.card_data || {};
-                            const asset = { id: row.id, category: row.category, name: row.name, fileType: row.file_type, rawBuffer: buffer, cardData: row.card_data, emojiList: row.card_data?.emojiList || null, rawText: row.raw_text, firstMes: dataObj.first_mes || '', alternateGreetings: dataObj.alternate_greetings || [], personality: extractPersonalityDeep(row.card_data || {}), worldbook: dataObj.character_book || (row.category === 'worldbooks' ? row.card_data : null), regexScripts: dataObj.extensions?.regex_scripts || (row.category === 'regex' ? row.card_data : null), createdAt: row.created_at || Date.now() };
+                            // 处理文件夹名册配置链
+                            if (row.id === '___CUSTOM_FOLDERS_CONFIG___' && row.card_data) {
+                                for (let cat in row.card_data) {
+                                    if (Array.isArray(row.card_data[cat])) {
+                                        localStorage.setItem('TAVERN_CUSTOM_FOLDERS_' + cat, JSON.stringify(row.card_data[cat]));
+                                    }
+                                }
+                                continue;
+                            }
+                            if (row.id === '___API_KEYS_CONFIG___' && row.card_data) {
+                                if (Array.isArray(row.card_data.keys) && typeof saveStoredApiKeys === 'function') saveStoredApiKeys(row.card_data.keys);
+                                if (Array.isArray(row.card_data.categories) && typeof saveStoredCustomCategories === 'function') saveStoredCustomCategories(row.card_data.categories);
+                                continue;
+                            }
+                            const asset = { id: row.id, category: row.category, name: row.name, fileType: row.file_type, rawBuffer: buffer, cardData: row.card_data, subCategory: row.card_data?.subCategory || dataObj.subCategory || null, row.card_data, emojiList: row.card_data?.emojiList || null, rawText: row.raw_text, firstMes: dataObj.first_mes || '', alternateGreetings: dataObj.alternate_greetings || [], personality: extractPersonalityDeep(row.card_data || {}), worldbook: dataObj.character_book || (row.category === 'worldbooks' ? row.card_data : null), regexScripts: dataObj.extensions?.regex_scripts || (row.category === 'regex' ? row.card_data : null), createdAt: row.created_at || Date.now() };
                             
                             const putTx = db.transaction('assets', 'readwrite');
                             putTx.objectStore('assets').put(asset);
