@@ -461,7 +461,7 @@ async function processFile(file, targetCategory = currentTab) {
                                 let buffer = null;
                                 if (row.raw_buffer_base64) {
                                     const binary = atob(row.raw_buffer_base64), bytes = new Uint8Array(binary.length);
-                                    for (let j = 0; i < binary.length; j++) bytes[j] = binary.charCodeAt(j);
+                                    for (let j = 0; j < binary.length; j++) bytes[j] = binary.charCodeAt(j);
                                     buffer = bytes.buffer;
                                 }
                                 const dataObj = row.card_data?.data || row.card_data || {};
@@ -579,7 +579,7 @@ async function processFile(file, targetCategory = currentTab) {
                                 let buffer = null;
                                 if (row.raw_buffer_base64) {
                                     const binary = atob(row.raw_buffer_base64), bytes = new Uint8Array(binary.length);
-                                    for (let j = 0; i < binary.length; j++) bytes[j] = binary.charCodeAt(j);
+                                    for (let j = 0; j < binary.length; j++) bytes[j] = binary.charCodeAt(j);
                                     buffer = bytes.buffer;
                                 }
                                 const dataObj = row.card_data?.data || row.card_data || {};
