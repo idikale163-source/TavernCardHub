@@ -264,7 +264,7 @@ async function processFile(file, targetCategory = currentTab) {
             if (ext==='zip') {
                 const raw=await file.arrayBuffer(); await saveAsset({id,category,subCategory:folder,name:cleanImportName(file.name),fileType:'zip',rawBuffer:raw,createdAt:Date.now()}); return;
             }
-            throw new Error('不支持的文件格式');
+            const raw=await file.arrayBuffer(); await saveAsset({id,category,subCategory:folder,name:cleanImportName(file.name),fileType:ext||'bin',rawBuffer:raw,createdAt:Date.now()}); return;
         }
         function parseEmojiTextLines(text) {
             const lines = text.split(/\r?\n/);
