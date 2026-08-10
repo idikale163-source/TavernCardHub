@@ -1180,11 +1180,7 @@ window.saveGalleryUrl = saveGalleryUrl;
 
                         const startFolderPress = (e) => {
                             isFolderLongPress = false;
-                            folderLongPressTimer = setTimeout(() => {
-                                isFolderLongPress = true;
-                                if (navigator.vibrate) try { navigator.vibrate(50); } catch(err){}
-                                deleteEntireFolder(fName, cnt);
-                            }, 500);
+                            // 移除了 500ms 长按误触自动弹弹窗删除逻辑，改由右侧明确的垃圾桶按钮操作
                         };
 
                         const cancelFolderPress = () => {
