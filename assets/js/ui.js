@@ -1114,9 +1114,11 @@ window.saveGalleryUrl = saveGalleryUrl;
                     // 2. 统计数量：只有当资产的 subCategory 在当前 Tab 的自定义列表内，或者属于'未分类'时才计数
                     // 彻底防止其他 Tab 的垃圾残留 subCategory 数据跨模块泄露！
                     filtered.forEach(a => {
-                        const fName = a.subCategory || '未分类';
-                        if (fName === '未分类' || customFolders.includes(fName)) {
-                            folderCounts[fName] = (folderCounts[fName] || 0) + 1;
+                        const rawSub = a.subCategory || '未分类';
+                        if (rawSub !== '未分类' && customFolders.includes(rawSub)) {
+                            folderCounts[rawSub] = (folderCounts[rawSub] || 0) + 1;
+                        } else {
+                            folderCounts['未分类'] = (folderCounts['未分类'] || 0) + 1;
                         }
                     });
 
