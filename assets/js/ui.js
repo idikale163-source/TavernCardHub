@@ -498,6 +498,9 @@ async function processFile(file, targetCategory = currentTab) {
                 if (asset.emojiList) {
                     cardData.emojiList = asset.emojiList;
                 }
+                if (asset.emojiList) {
+                    cardData.emojiList = asset.emojiList;
+                }
                 const { error } = await supabaseClient.from('tavern_assets').upsert({
                     id: asset.id,
                     category: asset.category,
