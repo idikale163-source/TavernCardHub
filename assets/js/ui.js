@@ -446,7 +446,7 @@ async function processFile(file, targetCategory = currentTab) {
                                 if (Array.isArray(row.card_data.categories) && typeof saveStoredCustomCategories === 'function') saveStoredCustomCategories(row.card_data.categories);
                                 continue;
                             }
-                            const asset = { id: row.id, category: row.category, name: row.name, fileType: row.file_type, rawBuffer: buffer, cardData: row.card_data, subCategory: row.card_data?.subCategory || dataObj.subCategory || null, emojiList: row.card_data?.emojiList || null, rawText: row.raw_text, firstMes: dataObj.first_mes || '', alternateGreetings: dataObj.alternate_greetings || [], personality: extractPersonalityDeep(row.card_data || {}), worldbook: dataObj.character_book || (row.category === 'worldbooks' ? row.card_data : null), regexScripts: dataObj.extensions?.regex_scripts || (row.category === 'regex' ? row.card_data : null), createdAt: row.created_at || Date.now() };
+                            const asset = { id: row.id, category: row.category, name: row.name, fileType: row.file_type, rawBuffer: buffer, cardData: row.card_data, subCategory: row.card_data?.subCategory || dataObj.subCategory || null, emojiList: row.card_data?.emojiList || dataObj.emojiList || (row.card_data?.data?.emojiList) || null, rawText: row.raw_text, firstMes: dataObj.first_mes || '', alternateGreetings: dataObj.alternate_greetings || [], personality: extractPersonalityDeep(row.card_data || {}), worldbook: dataObj.character_book || (row.category === 'worldbooks' ? row.card_data : null), regexScripts: dataObj.extensions?.regex_scripts || (row.category === 'regex' ? row.card_data : null), createdAt: row.created_at || Date.now() };
 
                             const putTx = db.transaction('assets', 'readwrite');
                             putTx.objectStore('assets').put(asset);
@@ -494,6 +494,9 @@ async function processFile(file, targetCategory = currentTab) {
                 const cardData = asset.cardData || {};
                 if (asset.subCategory && !cardData.subCategory) {
                     cardData.subCategory = asset.subCategory;
+                }
+                if (asset.emojiList) {
+                    cardData.emojiList = asset.emojiList;
                 }
                 const { error } = await supabaseClient.from('tavern_assets').upsert({
                     id: asset.id,
@@ -678,7 +681,7 @@ async function processFile(file, targetCategory = currentTab) {
                                     rawBuffer: buffer,
                                     cardData: row.card_data,
                                     subCategory: row.card_data?.subCategory || dataObj.subCategory || null,
-                                    emojiList: row.card_data?.emojiList || null,
+                                    emojiList: row.card_data?.emojiList || dataObj.emojiList || (row.card_data?.data?.emojiList) || null,
                                     rawText: row.raw_text,
                                     firstMes: dataObj.first_mes || '',
                                     alternateGreetings: dataObj.alternate_greetings || [],
