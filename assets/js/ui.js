@@ -262,7 +262,16 @@ async function processFile(file, targetCategory = currentTab) {
                 await saveAsset({id,category,subCategory:folder,name:cleanImportName(file.name),fileType:'docx',rawText:result.value,rawBuffer:raw,createdAt:Date.now()}); return;
             }
             if (ext==='zip') {
-                const raw=await file.arrayBuffer(); await saveAsset({id,category,subCategory:folder,name:cleanImportName(file.name),fileType:'zip',rawBuffer:raw,createdAt:Date.now()}); return;
+                const raw=await file.arrayBuffer(); 
+                const cat = (category === 'sandbox') ? 'sandbox' : category;
+                await saveAsset({id,category:cat,subCategory:folder,name:cleanImportName(file.name),fileType:'zip',rawBuffer:raw,createdAt:Date.now()}); 
+                return;
+            }
+            if (ext==='html' || ext==='htm') {
+                const rawText = await file.text();
+                const cat = (category === 'sandbox') ? 'sandbox' : category;
+                await saveAsset({id,category:cat,subCategory:folder,name:cleanImportName(file.name),fileType:'html',rawText:rawText,createdAt:Date.now()});
+                return;
             }
             const raw=await file.arrayBuffer(); await saveAsset({id,category,subCategory:folder,name:cleanImportName(file.name),fileType:ext||'bin',rawBuffer:raw,createdAt:Date.now()}); return;
         }
@@ -751,7 +760,7 @@ async function processFile(file, targetCategory = currentTab) {
         }
 
         async function updateBadges() {
-            const assets = await getAllAssets(), counts = { cards: 0, worldbooks: 0, emojis: 0, regex: 0, docs: 0, gallery: 0, themes: 0, links: 0 };
+            const assets = await getAllAssets(), counts = { cards: 0, worldbooks: 0, emojis: 0, regex: 0, docs: 0, gallery: 0, themes: 0, links: 0, sandbox: 0 };
             assets.forEach(a => { if (counts[a.category] !== undefined) counts[a.category]++; });
             for (let cat in counts) { const el = document.getElementById(`badge-${cat}`); if (el) el.innerText = counts[cat]; }
             const lh=document.getElementById('linksCountHint'); if(lh) lh.innerText=counts.links+' 条链接';
@@ -1277,7 +1286,7 @@ window.saveGalleryUrl = saveGalleryUrl;
 
             
             // Category/Folder First View (Except fonts)
-            if (['cards', 'worldbooks', 'docs', 'regex', 'gallery', 'links', 'emojis'].includes(currentTab) || isCustomCategoryTab(currentTab)) {
+            if (['cards', 'worldbooks', 'docs', 'regex', 'gallery', 'links', 'emojis', 'sandbox'].includes(currentTab) || isCustomCategoryTab(currentTab)) {
                 if (!currentFolderOpened && !keyword) {
                     // Group by subCategory & Strict Isolation by Custom Folders list
                     const folderCounts = {};
@@ -1440,6 +1449,7 @@ window.saveGalleryUrl = saveGalleryUrl;
                     else if (currentTab === 'docs') importBtnText = '📥 导入文档';
                     else if (currentTab === 'regex') importBtnText = '📥 导入';
                     else if (currentTab === 'emojis') importBtnText = '📥 导入表情包';
+                    else if (currentTab === 'sandbox') importBtnText = '📥 导入应用/ZIP';
 
                     let rightButtonsHtml = `
                         <button onclick="triggerGlobalDirectImport()" class="px-3 py-1.5 rounded-xl bg-[#fff0f3] border border-[#f2dadc] text-[#e11d48] text-xs font-bold hover:bg-[#ffe4e6] transition flex items-center gap-1 shadow-2xs active:scale-95 shrink-0">
@@ -1542,6 +1552,24 @@ if (currentTab === 'docs' || currentTab === 'regex') {
                         </div>
                         <div>
                             <h3 class="font-bold text-xs text-[#4a3e3d] text-center truncate px-0.5">${item.name}</h3>${item.tags && item.tags.length > 0 ? `<div class="flex items-center justify-center gap-1 flex-wrap pt-0.5">${item.tags.slice(0, 2).map(t => `<span class="text-[9px] px-1.5 py-0.2 rounded bg-[#f8eeee] text-[#b86b7a] font-medium">🏷️ ${t}</span>`).join('')}</div>` : ''}
+                        </div>
+                    `;
+                } else if (currentTab === 'sandbox' || item.category === 'sandbox') {
+                    const isZip = item.fileType === 'zip';
+                    card.className = `ui-card p-3 flex flex-col justify-between cursor-pointer hover:border-[#0ea5e9] transition active:scale-[0.99] relative group bg-white/80 rounded-2xl border border-[#e0f2fe] shadow-2xs ${isSelected ? 'ring-2 ring-[#0ea5e9] bg-[#f0f9ff]' : ''}`;
+                    card.innerHTML = `
+                        <div>
+                            <div class="h-24 rounded-xl bg-[#f0f9ff] mb-2 border border-[#bae6fd] flex flex-col items-center justify-center overflow-hidden p-2 text-center">
+                                <i data-lucide="${isZip ? 'package' : 'globe'}" class="w-8 h-8 text-[#0284c7] mb-1"></i>
+                                <span class="text-[10px] font-mono font-bold text-[#0369a1] px-2 py-0.5 rounded-full bg-white/90 shadow-2xs">${(item.fileType || 'APP').toUpperCase()}</span>
+                            </div>
+                            <h3 class="font-bold text-sm text-[#0f172a] text-center truncate py-0.5">${item.name}</h3>
+                            <p class="text-[10px] text-[#0284c7] font-semibold text-center">${isZip ? 'ZIP 小手机/微应用' : 'HTML 沉浸网页'}</p>
+                        </div>
+                        <div class="mt-2 pt-2 border-t border-[#e0f2fe] flex items-center justify-between gap-1">
+                            <button onclick="event.stopPropagation(); runSandboxItem(item);" class="flex-1 py-1.5 rounded-xl bg-[#0284c7] hover:bg-[#0369a1] text-white font-bold text-xs transition shadow-2xs flex items-center justify-center gap-1 active:scale-95">
+                                <i data-lucide="play" class="w-3 h-3"></i> 沉浸运行
+                            </button>
                         </div>
                     `;
                 } else if (currentTab === 'emojis') {
@@ -1898,6 +1926,14 @@ if (currentTab === 'docs' || currentTab === 'regex') {
                 btnDownloadImg.className = "px-2.5 py-1 rounded-full bg-[#d88c9a] text-white hover:bg-[#c97b8b] text-[11px] font-bold transition flex items-center gap-1 shadow-sm";
                 btnDownloadImg.innerHTML = `<i data-lucide="download" class="w-3 h-3"></i> 下载图片`;
                 container.insertBefore(btnDownloadImg, container.firstChild);
+            }
+
+            if (item.category === 'sandbox' || item.fileType === 'html' || item.fileType === 'zip') {
+                const btnRun = document.createElement('button');
+                btnRun.onclick = () => { if (typeof runSandboxItem === 'function') runSandboxItem(item); };
+                btnRun.className = "px-3 py-1 rounded-full bg-[#0284c7] text-white hover:bg-[#0369a1] text-[11px] font-bold transition flex items-center gap-1 shadow-sm";
+                btnRun.innerHTML = `<i data-lucide="play" class="w-3 h-3"></i> 沉浸全屏运行`;
+                container.insertBefore(btnRun, container.firstChild);
             }
 
             if (item.category === 'cards') {

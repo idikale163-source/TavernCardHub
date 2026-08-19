@@ -174,6 +174,14 @@
                     </div>
                     <span id="badge-links" class="text-[10px] px-2 py-0.5 rounded-full bg-[#f8eeee] text-[#8c7173] font-mono">0</span>
                 </button>
+
+                <button onclick="switchTab('sandbox', event)" id="tab-sandbox" class="tab-btn w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-[#785e60] hover:bg-[#fdf4f5] transition">
+                    <div class="flex items-center gap-2.5">
+                        <i data-lucide="smartphone" class="w-4 h-4 text-[#0ea5e9]"></i>
+                        <span>📱 微应用/沙盒 (Apps)</span>
+                    </div>
+                    <span id="badge-sandbox" class="text-[10px] px-2 py-0.5 rounded-full bg-[#f8eeee] text-[#8c7173] font-mono">0</span>
+                </button>
             </div>
 
             <!-- 📁 自定义添加分类折叠抽屉 -->
@@ -792,9 +800,14 @@
                                 <i data-lucide="file-text" class="w-4 h-4"></i>
                                 <span>文档全文内容</span>
                             </div>
-                            <button onclick="copyText('docFullContentText')" class="text-xs text-[#a38b8d] hover:text-[#d88c9a] flex items-center gap-1">
-                                <i data-lucide="copy" class="w-3.5 h-3.5"></i> 复制全文
-                            </button>
+                            <div class="flex items-center gap-2">
+                                <button onclick="if(typeof runSandboxItem === 'function' && currentItem) runSandboxItem(currentItem);" class="text-xs text-[#0284c7] hover:text-[#0369a1] font-bold flex items-center gap-1 bg-[#e0f2fe] px-2.5 py-1 rounded-lg">
+                                    <i data-lucide="play" class="w-3.5 h-3.5"></i> 沉浸全屏运行
+                                </button>
+                                <button onclick="copyText('docFullContentText')" class="text-xs text-[#a38b8d] hover:text-[#d88c9a] flex items-center gap-1">
+                                    <i data-lucide="copy" class="w-3.5 h-3.5"></i> 复制全文
+                                </button>
+                            </div>
                         </div>
                         <div class="flex flex-wrap items-center justify-between gap-2 bg-[#fdf4f5] p-2.5 rounded-xl border border-[#f2dadc] my-2">
                             <div class="flex items-center gap-1.5">
@@ -805,13 +818,14 @@
                             </div>
                             <div class="flex items-center gap-1.5">
                                 <span class="text-xs font-bold text-[#b86b7a]">🔄 转分类:</span>
-                                <select onchange="convertCurrentAssetCategory(this.value)" class="text-xs bg-white border border-[#f2dadc] text-[#4a3e3d] font-bold rounded-lg px-2 py-1 outline-none shadow-2xs">
-                                    <option value="">选择目标分类...</option>
-                                    <option value="cards">转为 角色卡 (Cards)</option>
-                                    <option value="worldbooks">转为 世界书 (Worldbooks)</option>
-                                    <option value="regex">转为 番外/小剧场 (Extras)</option>
-                                    <option value="docs">转为 文档 (Docs)</option>
-                                </select>
+<select onchange="convertCurrentAssetCategory(this.value)" class="text-xs bg-white border border-[#f2dadc] text-[#4a3e3d] font-bold rounded-lg px-2 py-1 outline-none shadow-2xs">
+                                     <option value="">选择目标分类...</option>
+                                     <option value="cards">转为 角色卡 (Cards)</option>
+                                     <option value="worldbooks">转为 世界书 (Worldbooks)</option>
+                                     <option value="regex">转为 番外/小剧场 (Extras)</option>
+                                     <option value="docs">转为 文档 (Docs)</option>
+                                     <option value="sandbox">转为 微应用/沙盒 (Apps)</option>
+                                 </select>
                             </div>
                         </div>
 
@@ -839,5 +853,6 @@
     <script src="assets/js/ui.js?v=1786608497"></script>
     <script src="assets/js/links.js?v=1786377509"></script>
     <script src="assets/js/font.js?v=1786377509"></script>
+    <script src="assets/js/sandbox.js?v=1786609999"></script>
 </body>
 </html>
