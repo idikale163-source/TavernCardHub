@@ -304,6 +304,11 @@
                         <button onclick="restoreFromCloudIncremental()" class="px-2 py-1 rounded-lg bg-[#e8f3ef] text-[#5b8a7f] text-[10px] font-semibold hover:bg-[#d8ebe5] transition">🔄 增量恢复</button>
                     </div>
                     <div class="flex items-center justify-between gap-1.5 pt-0.5">
+                        <button onclick="exportAssetsAsZip()" class="px-2 py-1 rounded-lg bg-[#f0e8f5] text-[#7a5b8a] text-[10px] font-semibold hover:bg-[#e8d8f0] transition flex-1">📦 导出ZIP备份</button>
+                        <button onclick="importAssetsFromZip()" class="px-2 py-1 rounded-lg bg-[#f0e8f5] text-[#7a5b8a] text-[10px] font-semibold hover:bg-[#e8d8f0] transition flex-1">📥 从ZIP导入</button>
+                    </div>
+                    <input type="file" id="zipImportInput" accept=".zip" style="display:none">
+                    <div class="flex items-center justify-between gap-1.5 pt-0.5">
                         <button onclick="forceOverwriteBackupCloud()" class="px-2 py-1 rounded-lg bg-rose-50 border border-rose-200 text-rose-600 text-[10px] font-semibold hover:bg-rose-100 transition flex-1">💥 覆盖云端备份</button>
                         <button onclick="forceOverwriteRestoreLocal()" class="px-2 py-1 rounded-lg bg-rose-50 border border-rose-200 text-rose-600 text-[10px] font-semibold hover:bg-rose-100 transition flex-1">⚠️ 覆盖恢复本地</button>
                     </div>
@@ -859,6 +864,7 @@
     <script src="assets/js/core.js?v=1786377509"></script>
     <script src="assets/js/sync.js?v=1786377509"></script>
     <script src="assets/js/apikeys.js?v=1786377509"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
     <script src="assets/js/ui.js?v=1787302277"></script>
     <script src="assets/js/links.js?v=1786377509"></script>
     <script src="assets/js/font.js?v=1786377509"></script>
