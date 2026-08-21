@@ -1819,14 +1819,7 @@ if (currentTab === 'docs' || currentTab === 'regex') {
                             </div>
                             <div class="text-sm font-bold text-[#4a3e3d] truncate pt-1">${item.name}</div>
                             
-                            <!-- 图库标签栏 (长按复制/点击编辑/删除) -->
-                            <div class="p-2.5 bg-[#fdf6f7] rounded-xl border border-[#f2dadc] text-left space-y-1.5">
-                                <div class="flex items-center justify-between">
-                                    <span class="text-xs font-bold text-[#8c7173]">🏷️ 图片标签 (长按复制 · 点击改删):</span>
-                                    <button type="button" onclick="promptAddCustomTag()" class="px-2.5 py-0.5 rounded-full bg-[#d88c9a] text-white text-[11px] font-bold shadow-2xs hover:bg-[#c97b8b] transition">＋ 新增标签</button>
-                                </div>
-                                <div id="galleryDetailTagsContainer" class="flex flex-wrap items-center gap-1.5 pt-1"></div>
-                            </div>
+
 
                             <div class="flex justify-center py-2">
                                 <img src="${imgUrl}" class="max-w-full rounded-2xl shadow-md border border-[#f5e1e3] max-h-[60vh] object-contain">
