@@ -1,4 +1,4 @@
-<!-- BUILD_VER_STAMP: 1787273526 -->
+<!-- BUILD_VER_STAMP: 1787273976 -->
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -581,89 +581,7 @@
 
             
             
-            <!-- Custom Panel for 表情包批量命名 -->
-            <div id="emojiNamerBuilderPanel" class="hidden flex-1 flex flex-col h-full overflow-hidden p-2.5 space-y-2.5 bg-[#faf9f6] border border-[#e5e1d8] rounded-2xl shadow-xs">
-                <div class="flex items-center justify-between pb-2 border-b border-[#e5e1d8]">
-                    <div class="flex items-center gap-2">
-                        <span class="text-base">🏷️</span>
-                        <div>
-                            <h2 class="text-xs font-bold text-[#33383b]">表情包批量命名与格式化导出</h2>
-                            <p class="text-[10px] text-[#828a8f]">批量粘贴直链 · 预览缩略图 · 自定义连接符 · 批量导出</p>
-                        </div>
-                    </div>
-                    <div id="namerProgressTag" class="text-[10px] font-semibold text-[#5b7a68] bg-[#ebf1ed] px-2.5 py-1 rounded-full">0 / 0 已命名</div>
-                </div>
-
-                <!-- 进度条 -->
-                <div class="w-full h-1.5 bg-[#e4dfd5] rounded-full overflow-hidden">
-                    <div id="namerProgressBar" class="w-0 h-full bg-[#5b7a68] rounded-full transition-all duration-300"></div>
-                </div>
-
-                <!-- 批量导入区 -->
-                <div class="bg-white p-3 rounded-xl border border-[#e5e1d8] space-y-2">
-                    <textarea id="namerRawInput" placeholder="在此粘贴表情包直链，一行一个，或直接粘贴整段含链接的文字..." class="w-full h-20 bg-[#faf9f6] border border-[#e5e1d8] rounded-lg p-2 text-xs text-[#33383b] outline-none resize-y"></textarea>
-                    <div class="flex flex-wrap gap-1.5">
-                        <button type="button" onclick="namerProcessInput(false)" class="px-3 py-1.5 bg-[#5b7a68] hover:bg-[#476253] text-white text-xs font-semibold rounded-lg transition shadow-2xs">＋ 追加表情</button>
-                        <button type="button" onclick="namerProcessInput(true)" class="px-3 py-1.5 bg-white border border-[#e5e1d8] text-[#33383b] hover:bg-[#f5f2eb] text-xs font-semibold rounded-lg transition">替换列表</button>
-                        <button type="button" onclick="document.getElementById('namerFileInput').click()" class="px-3 py-1.5 bg-white border border-[#e5e1d8] text-[#33383b] hover:bg-[#f5f2eb] text-xs font-semibold rounded-lg transition">导入 TXT</button>
-                        <button type="button" onclick="namerClearList()" class="ml-auto px-2 py-1 text-[11px] text-[#828a8f] hover:text-[#d32f2f] transition">清空</button>
-                        <input type="file" id="namerFileInput" accept=".txt" style="display:none" onchange="namerHandleFileImport(event)">
-                    </div>
-                </div>
-
-                <!-- 列表展示与命名 -->
-                <div class="flex-1 flex flex-col min-h-0 space-y-2">
-                    <div class="flex items-center justify-between px-1">
-                        <span class="text-xs font-bold text-[#33383b]">表情列表 · <span id="namerCountSpan" class="text-[#828a8f]">0</span></span>
-                        <div class="flex items-center gap-2">
-                            <span class="text-[11px] text-[#828a8f]">连接符:</span>
-                            <input type="text" id="namerSeparator" value=":" placeholder="如 - 或 |" oninput="namerUpdateVisibleUrls()" class="w-16 bg-white border border-[#e5e1d8] rounded px-1.5 py-0.5 text-xs text-center">
-                        </div>
-                    </div>
-
-                    <div id="namerItemsList" class="flex-1 space-y-2 overflow-y-auto p-0.5 min-h-0">
-                        <div class="text-center py-8 text-xs text-[#828a8f]">暂无表情，请在上方粘贴链接后追加</div>
-                    </div>
-                </div>
-
-                <!-- 底部导出操作 -->
-                <div class="bg-white p-2.5 rounded-xl border border-[#e5e1d8] flex flex-wrap items-center justify-between gap-2">
-                    <button type="button" onclick="namerToggleSelectAll()" class="px-3 py-1.5 bg-[#faf9f6] border border-[#e5e1d8] text-[#33383b] text-xs font-medium rounded-lg hover:bg-[#f0ece3] transition">全选/反选</button>
-                    <button type="button" id="namerRevealBtn" onclick="namerToggleRevealUrls()" class="px-3 py-1.5 bg-[#faf9f6] border border-[#e5e1d8] text-[#33383b] text-xs font-medium rounded-lg hover:bg-[#f0ece3] transition">显示链接</button>
-                    <div class="flex items-center gap-1.5 ml-auto">
-                        <button type="button" onclick="namerCopyExportText()" class="px-3 py-1.5 bg-[#ebf1ed] text-[#5b7a68] border border-[#5b7a68]/40 hover:bg-[#d8e6dc] text-xs font-bold rounded-lg transition">📋 复制导出</button>
-                        <button type="button" onclick="namerExportTxtFile()" class="px-3 py-1.5 bg-[#5b7a68] hover:bg-[#476253] text-white text-xs font-bold rounded-lg transition shadow-2xs">💾 下载 TXT</button>
-                    </div>
-                </div>
-            </div>
-
-<div id="linksBuilderPanel" class="hidden mb-4 ui-card border border-[#dbeafe] bg-[#f8fbff] overflow-hidden">
-                <button type="button" onclick="toggleLinksPanel()" class="w-full p-4 flex items-center justify-between text-left">
-                    <div><h2 class="text-sm font-bold text-[#1e40af]">🔗 网址链接管理</h2><p class="text-[10px] text-[#64748b]">复制粘贴保存 · 分类整理 · 默认浏览器打开</p></div>
-                    <div class="flex items-center gap-2"><span id="linksCountHint" class="text-[10px] text-[#2563eb]">0 条链接</span><span id="linksPanelChevron" class="text-[#60a5fa]">⌄</span></div>
-                </button>
-                <div id="linksPanelBody" class="px-4 pb-4 space-y-2">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-                        <input id="linkTitleInput" type="text" placeholder="链接名称" class="w-full bg-white border border-[#bfdbfe] rounded-lg px-3 py-2 text-xs text-[#1e3a8a]">
-                        <input id="linkUrlInput" type="url" placeholder="粘贴 https://... 网址" class="w-full bg-white border border-[#bfdbfe] rounded-lg px-3 py-2 text-xs font-mono text-[#1e3a8a]">
-                    </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-2">
-                        <div class="flex items-center gap-1.5">
-                            <input id="linkCategoryInput" type="text" placeholder="分类（可选或下方选择）" class="w-full bg-white border border-[#bfdbfe] rounded-lg px-3 py-2 text-xs text-[#1e3a8a]">
-                            <select id="linkCategorySelect" onchange="if(this.value){ document.getElementById('linkCategoryInput').value = this.value; }" class="bg-white border border-[#bfdbfe] rounded-lg px-2 py-2 text-xs text-[#1e3a8a] outline-none shrink-0 font-semibold">
-                                <option value="">一键选择已有分类...</option>
-                            </select>
-                        </div>
-                        <button type="button" onclick="saveNewLinkAsset()" class="px-4 py-2 rounded-xl bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-xs font-bold shadow-xs active:scale-95 transition">＋保存链接</button>
-                        <button type="button" onclick="pasteLinkFromClipboard()" class="px-4 py-2 rounded-xl bg-[#eff6ff] text-[#2563eb] text-xs font-bold hover:bg-[#dbeafe] transition">📋 粘贴</button>
-                    </div>
-                </div>
-            </div>
-
-            <div id="itemsContainer" class="grid grid-cols-2 gap-3"></div>
-        </div>
-
-        <!-- Section 2: Detail View -->
+            <!-- Section 2: Detail View -->
         <div id="detailView" class="flex-1 flex-col overflow-hidden hidden bg-[#faf6f0]">
             <div class="bg-white/90 backdrop-blur-md border-b border-[#f2dadc] px-3 py-2 shrink-0 flex flex-col gap-1.5 shadow-2xs">
                 <div class="flex items-center justify-between">
@@ -911,12 +829,69 @@
                 </div>
             </div>
         </div>
+    
+        <!-- Section 3: Emoji Namer Fullscreen View -->
+        <div id="emojiNamerBuilderPanel" class="hidden flex-1 flex-col overflow-hidden bg-[#faf6f0] p-3 space-y-2.5">
+            <div class="bg-white/90 backdrop-blur-md border border-[#e5e1d8] rounded-2xl p-3 shadow-xs shrink-0 space-y-2.5">
+                <div class="flex items-center justify-between pb-2 border-b border-[#e5e1d8]">
+                    <div class="flex items-center gap-2">
+                        <span class="text-base">🏷️</span>
+                        <div>
+                            <h2 class="text-xs font-bold text-[#33383b]">表情包批量命名与格式化导出</h2>
+                            <p class="text-[10px] text-[#828a8f]">批量粘贴直链 · 预览缩略图 · 自定义连接符 · 批量导出</p>
+                        </div>
+                    </div>
+                    <div id="namerProgressTag" class="text-[10px] font-semibold text-[#5b7a68] bg-[#ebf1ed] px-2.5 py-1 rounded-full">0 / 0 已命名</div>
+                </div>
+
+                <!-- 进度条 -->
+                <div class="w-full h-1.5 bg-[#e4dfd5] rounded-full overflow-hidden">
+                    <div id="namerProgressBar" class="w-0 h-full bg-[#5b7a68] rounded-full transition-all duration-300"></div>
+                </div>
+
+                <!-- 批量导入输入框 -->
+                <textarea id="namerRawInput" placeholder="在此粘贴表情包直链，一行一个，或直接粘贴整段含链接的文字..." class="w-full h-16 bg-[#faf9f6] border border-[#e5e1d8] rounded-xl p-2.5 text-xs text-[#33383b] outline-none resize-none focus:border-[#5b7a68]"></textarea>
+                <div class="flex flex-wrap items-center gap-2">
+                    <button type="button" onclick="namerProcessInput(false)" class="px-3.5 py-1.5 bg-[#5b7a68] hover:bg-[#476253] text-white text-xs font-bold rounded-xl transition shadow-xs">＋ 追加表情</button>
+                    <button type="button" onclick="namerProcessInput(true)" class="px-3 py-1.5 bg-white border border-[#e5e1d8] text-[#33383b] hover:bg-[#f5f2eb] text-xs font-semibold rounded-xl transition">替换列表</button>
+                    <button type="button" onclick="document.getElementById('namerFileInput').click()" class="px-3 py-1.5 bg-white border border-[#e5e1d8] text-[#33383b] hover:bg-[#f5f2eb] text-xs font-semibold rounded-xl transition">导入 TXT</button>
+                    <button type="button" onclick="namerClearList()" class="ml-auto px-2 py-1 text-xs text-[#828a8f] hover:text-[#d32f2f] transition">清空</button>
+                    <input type="file" id="namerFileInput" accept=".txt" style="display:none" onchange="namerHandleFileImport(event)">
+                </div>
+            </div>
+
+            <!-- 列表展示与命名区 (占满全部中间剩余屏幕) -->
+            <div class="flex-1 flex flex-col min-h-0 bg-white/60 border border-[#e5e1d8] rounded-2xl p-2.5 shadow-2xs space-y-2">
+                <div class="flex items-center justify-between px-1 shrink-0">
+                    <span class="text-xs font-bold text-[#33383b]">表情列表 · <span id="namerCountSpan" class="text-[#828a8f]">0</span></span>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[11px] text-[#828a8f]">连接符:</span>
+                        <input type="text" id="namerSeparator" value=":" placeholder="如 : 或 -" oninput="namerUpdateVisibleUrls()" class="w-12 bg-white border border-[#e5e1d8] rounded-lg px-1.5 py-0.5 text-xs text-center font-bold text-[#5b7a68]">
+                    </div>
+                </div>
+
+                <div id="namerItemsList" class="flex-1 overflow-y-auto space-y-2 p-1 custom-scrollbar min-h-0">
+                    <div class="text-center py-16 text-xs text-[#828a8f]">暂无表情，请在上方粘贴链接后追加</div>
+                </div>
+            </div>
+
+            <!-- 底部操作栏 -->
+            <div class="bg-white/90 backdrop-blur-md border border-[#e5e1d8] rounded-2xl p-2.5 shadow-xs flex items-center justify-between gap-2 shrink-0">
+                <button type="button" onclick="namerToggleSelectAll()" class="px-3 py-1.5 bg-[#faf9f6] border border-[#e5e1d8] text-[#33383b] text-xs font-medium rounded-xl hover:bg-[#f0ece3] transition">全选/反选</button>
+                <button type="button" id="namerRevealBtn" onclick="namerToggleRevealUrls()" class="px-3 py-1.5 bg-[#faf9f6] border border-[#e5e1d8] text-[#33383b] text-xs font-medium rounded-xl hover:bg-[#f0ece3] transition">显示链接</button>
+                <div class="flex items-center gap-2 ml-auto">
+                    <button type="button" onclick="namerCopyExportText()" class="px-3.5 py-1.5 bg-[#ebf1ed] text-[#5b7a68] border border-[#5b7a68]/40 hover:bg-[#d8e6dc] text-xs font-bold rounded-xl transition">📋 复制导出</button>
+                    <button type="button" onclick="namerExportTxtFile()" class="px-3.5 py-1.5 bg-[#5b7a68] hover:bg-[#476253] text-white text-xs font-bold rounded-xl transition shadow-xs">💾 下载 TXT</button>
+                </div>
+            </div>
+        </div>
+
     </main>
 
     <script src="assets/js/core.js?v=1786377509"></script>
     <script src="assets/js/sync.js?v=1786377509"></script>
     <script src="assets/js/apikeys.js?v=1786377509"></script>
-    <script src="assets/js/ui.js?v=1787273526"></script>
+    <script src="assets/js/ui.js?v=1787273976"></script>
     <script src="assets/js/links.js?v=1786377509"></script>
     <script src="assets/js/font.js?v=1786377509"></script>
     <script src="assets/js/sandbox.js?v=1786609999"></script>
