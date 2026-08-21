@@ -984,21 +984,103 @@ async function processFile(file, targetCategory = currentTab) {
 
         function tokTrim(t) { return String(t).trim(); }
 
+        /* ================= 全局标签管理体系 (顶部胶囊栏+卡片+详情页) ================= */
+        let globalTagPressTimer = null;
+        let isGlobalTagLongPress = false;
+
+        window.handleTagTouchStart = function(tag, e) {
+            isGlobalTagLongPress = false;
+            if (globalTagPressTimer) clearTimeout(globalTagPressTimer);
+            globalTagPressTimer = setTimeout(() => {
+                isGlobalTagLongPress = true;
+                promptGlobalTagAction(tag);
+                if (window.navigator && window.navigator.vibrate) {
+                    window.navigator.vibrate(50);
+                }
+            }, 550);
+        };
+
+        window.handleTagTouchEnd = function() {
+            if (globalTagPressTimer) clearTimeout(globalTagPressTimer);
+        };
+
+        window.promptGlobalTagAction = async function(oldTag) {
+            const currentCat = categoryStorageKey(currentTab);
+            const choice = prompt(`【管理分类标签 “${oldTag}”】\n\n1. 输入新名字直接修改\n2. 清空并点击确定则在当前分类彻底删除该标签\n3. 点击取消返回`, oldTag);
+            if (choice === null) return;
+            const trimmed = choice.trim();
+            
+            const assets = await getAllAssets();
+            const categoryAssets = assets.filter(a => a.category === currentCat && a.tags && a.tags.includes(oldTag));
+            
+            if (categoryAssets.length === 0) {
+                showToast('⚠️', '未找到包含该标签的资产');
+                return;
+            }
+
+            if (!trimmed) {
+                // 彻底删除该标签
+                if (!confirm(`确定在当前分类的所有 ${categoryAssets.length} 项资产中彻底删除标签 “${oldTag}” 吗？`)) return;
+                for (let a of categoryAssets) {
+                    a.tags = a.tags.filter(t => t !== oldTag);
+                    await saveAsset(a);
+                }
+                if (currentSelectedTagFilter === oldTag) {
+                    currentSelectedTagFilter = 'ALL';
+                }
+                if (currentItem && currentItem.tags) {
+                    currentItem.tags = currentItem.tags.filter(t => t !== oldTag);
+                    renderOverviewTags();
+                }
+                renderTagFilterBar();
+                renderItems();
+                showToast('🗑️', `已彻底删除标签 “${oldTag}”`);
+            } else if (trimmed !== oldTag) {
+                // 批量重命名该标签
+                for (let a of categoryAssets) {
+                    const idx = a.tags.indexOf(oldTag);
+                    if (idx !== -1) {
+                        a.tags[idx] = trimmed;
+                        a.tags = Array.from(new Set(a.tags));
+                    }
+                    await saveAsset(a);
+                }
+                if (currentSelectedTagFilter === oldTag) {
+                    currentSelectedTagFilter = trimmed;
+                }
+                if (currentItem && currentItem.tags) {
+                    const idx = currentItem.tags.indexOf(oldTag);
+                    if (idx !== -1) currentItem.tags[idx] = trimmed;
+                    renderOverviewTags();
+                }
+                renderTagFilterBar();
+                renderItems();
+                showToast('✏️', `标签已重命名为 “${trimmed}”`);
+            }
+        };
+
         async function promptAddCustomTag() {
             if (!currentItem) return;
-            const newTag = prompt('请输入新标签名字：');
-            if (newTag && newTag.trim()) {
-                const tagStr = newTag.trim();
-                currentItem.tags = currentItem.tags || [];
-                if (!currentItem.tags.includes(tagStr)) {
-                    currentItem.tags.push(tagStr);
-                    await saveAsset(currentItem);
-                    renderOverviewTags();
-                    renderTagFilterBar();
-                    renderItems();
-                    showToast('🏷️', `已成功添加标签 “${tagStr}”`);
-                }
-            }
+            const existingTags = currentItem.tags || [];
+            const tagStr = prompt(`【管理当前资产标签】\n请输入标签（多个标签可用逗号或空格隔开）：`, existingTags.join(', '));
+            if (tagStr === null) return;
+            const newTags = tagStr.split(/[,，\s]+/).map(t => t.trim()).filter(t => t.length > 0);
+            currentItem.tags = Array.from(new Set(newTags));
+            await saveAsset(currentItem);
+            renderOverviewTags();
+            renderTagFilterBar();
+            renderItems();
+            showToast('🏷️', `标签已更新 (${currentItem.tags.length}个)`);
+        }
+
+        async function removeTagFromCurrentItem(tag) {
+            if (!currentItem || !currentItem.tags) return;
+            currentItem.tags = currentItem.tags.filter(t => t !== tag);
+            await saveAsset(currentItem);
+            renderOverviewTags();
+            renderTagFilterBar();
+            renderItems();
+            showToast('🗑️', `已移除标签 “${tag}”`);
         }
 
         async function editTagOnCurrentItem(oldTag) {
@@ -1023,35 +1105,6 @@ async function processFile(file, targetCategory = currentTab) {
             }
         }
 
-        async function removeTagFromCurrentItem(tag) {
-            if (!currentItem || !currentItem.tags) return;
-            if (!confirm(`确定删除标签 “${tag}” 吗？`)) return;
-            currentItem.tags = currentItem.tags.filter(t => t !== tag);
-            await saveAsset(currentItem);
-            renderOverviewTags();
-            renderTagFilterBar();
-            renderItems();
-            showToast('🗑️', `已移除标签 “${tag}”`);
-        }
-
-        async function promptManageAssetTags(assetId, e) {
-            if (e && e.stopPropagation) e.stopPropagation();
-            if (e && e.preventDefault) e.preventDefault();
-            const assets = await getAllAssets();
-            const target = assets.find(a => a.id === assetId);
-            if (!target) return;
-            currentItem = target;
-            const existingTags = target.tags || [];
-            const tagStr = prompt(`【管理标签】请输入标签（多个标签用逗号或空格隔开）：`, existingTags.join(', '));
-            if (tagStr === null) return;
-            const newTags = tagStr.split(/[,，\s]+/).map(t => t.trim()).filter(t => t.length > 0);
-            target.tags = Array.from(new Set(newTags));
-            await saveAsset(target);
-            renderTagFilterBar();
-            renderItems();
-            showToast('🏷️', `标签已更新 (${target.tags.length}个)`);
-        }
-
         function renderOverviewTags() {
             const container = document.getElementById('overviewTagsContainer');
             if (!container) return;
@@ -1063,8 +1116,11 @@ async function processFile(file, targetCategory = currentTab) {
             }
             tags.forEach(tag => {
                 const pill = document.createElement('span');
-                pill.className = "px-2.5 py-1 rounded-full bg-[#f8eeee] border border-[#f2dadc] text-[#b86b7a] text-xs font-semibold flex items-center gap-1 shadow-2xs group";
-                pill.innerHTML = `<span onclick="editTagOnCurrentItem('${tag}')" class="cursor-pointer hover:underline" title="点击编辑标签">🏷️ ${tag}</span><button onclick="removeTagFromCurrentItem('${tag}')" class="text-[#a38b8d] hover:text-rose-600 font-bold text-xs ml-1" title="删除标签">✕</button>`;
+                pill.className = "px-2.5 py-1 rounded-full bg-[#f8eeee] border border-[#f2dadc] text-[#b86b7a] text-xs font-semibold flex items-center gap-1 shadow-2xs group cursor-pointer";
+                pill.innerHTML = `
+                    <span onclick="editTagOnCurrentItem('${tag}')" title="点击编辑标签">🏷️ ${tag}</span>
+                    <button onclick="event.stopPropagation(); removeTagFromCurrentItem('${tag}')" class="text-[#a38b8d] hover:text-rose-600 font-bold text-xs ml-1" title="删除该标签">✕</button>
+                `;
                 container.appendChild(pill);
             });
         }
@@ -1098,10 +1154,14 @@ async function processFile(file, targetCategory = currentTab) {
             container.appendChild(allBtn);
 
             tagSet.forEach(tag => {
-                const btn = document.createElement('button');
-                btn.onclick = () => filterByTag(tag);
-                btn.className = `px-3 py-1 rounded-full text-[11px] font-bold shrink-0 transition ${currentSelectedTagFilter === tag ? 'bg-[#d88c9a] text-white shadow-sm' : 'bg-[#f5e8e8] text-[#8c7173] hover:bg-[#f8eeee]'}`;
-                btn.innerText = `🏷️ ${tag}`;
+                const btn = document.createElement('div');
+                const isSelected = currentSelectedTagFilter === tag;
+                btn.className = `px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0 transition flex items-center gap-1 cursor-pointer select-none active:scale-95 ${isSelected ? 'bg-[#d88c9a] text-white shadow-sm' : 'bg-[#f5e8e8] text-[#8c7173] hover:bg-[#f8eeee]'}`;
+                
+                btn.innerHTML = `
+                    <span ontouchstart="handleTagTouchStart('${tag}', event)" ontouchend="handleTagTouchEnd()" onclick="if(!isGlobalTagLongPress) filterByTag('${tag}')" title="点击筛选，长按修改/删除">🏷️ ${tag}</span>
+                    <span onclick="event.stopPropagation(); promptGlobalTagAction('${tag}')" class="text-xs ${isSelected ? 'text-white/80 hover:text-white' : 'text-[#a38b8d] hover:text-rose-600'} font-bold ml-0.5 px-0.5" title="管理/删除该标签">✕</span>
+                `;
                 container.appendChild(btn);
             });
         }
