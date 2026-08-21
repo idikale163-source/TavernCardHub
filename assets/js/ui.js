@@ -136,13 +136,14 @@ function switchTab(tab, e) {
         if (themePanel) themePanel.classList.remove('hidden');
         renderItems();
     } else if (tab === 'emoji_namer') {
-        const topSearchArea = document.getElementById('topSearchFilterArea') || document.getElementById('searchInput')?.closest('.bg-white');
-        if (topSearchArea) topSearchArea.classList.add('hidden');
-        if (itemsGrid) itemsGrid.classList.add('hidden');
+        const emojiNamerPanel = document.getElementById('emojiNamerBuilderPanel');
         if (emojiNamerPanel) {
             emojiNamerPanel.classList.remove('hidden');
             emojiNamerPanel.classList.add('flex');
+            initFloatingBackButton();
         }
+        if (typeof namerRenderList === 'function') namerRenderList();
+    }
         if (typeof namerRenderList === 'function') namerRenderList();
     } else if (tab === 'links') {
         if (linksPanel) { linksPanel.classList.remove('hidden'); populateLinkCategorySelect(); }
