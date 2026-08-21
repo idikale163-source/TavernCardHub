@@ -76,6 +76,7 @@ function formatFileSize(bytes) {
 
 function switchTab(tab, e) {
     currentTab = tab;
+    currentSelectedTagFilter = 'ALL';
     currentFolderOpened = null;
     const oldInput = document.getElementById('globalDirectFileInput');
     if (oldInput) oldInput.remove();
@@ -455,7 +456,9 @@ async function processFile(file, targetCategory = currentTab) {
                                 if (Array.isArray(row.card_data.categories) && typeof saveStoredCustomCategories === 'function') saveStoredCustomCategories(row.card_data.categories);
                                 continue;
                             }
-                            const asset = { id: row.id, category: row.category, name: row.name, fileType: row.file_type, rawBuffer: buffer, cardData: row.card_data, subCategory: row.card_data?.subCategory || dataObj.subCategory || null, emojiList: row.card_data?.emojiList || dataObj.emojiList || (row.card_data?.data?.emojiList) || null, rawText: row.raw_text, firstMes: dataObj.first_mes || '', alternateGreetings: dataObj.alternate_greetings || [], personality: extractPersonalityDeep(row.card_data || {}), worldbook: dataObj.character_book || (row.category === 'worldbooks' ? row.card_data : null), regexScripts: dataObj.extensions?.regex_scripts || (row.category === 'regex' ? row.card_data : null), createdAt: row.created_at || Date.now() };
+                            const asset = { id: row.id, category: row.category, name: row.name, fileType: row.file_type, rawBuffer: buffer, cardData: row.card_data, subCategory: row.card_data?.subCategory || dataObj.subCategory || null,
+                                    tags: row.card_data?.tags || dataObj.tags || (Array.isArray(row.card_data?.card_data?.tags) ? row.card_data.card_data.tags : []) || null,
+                                    url: row.card_data?.url || dataObj.url || (row.category === 'links' ? row.raw_text?.split('\n')[1] : null) || null, emojiList: row.card_data?.emojiList || dataObj.emojiList || (row.card_data?.data?.emojiList) || null, rawText: row.raw_text, firstMes: dataObj.first_mes || '', alternateGreetings: dataObj.alternate_greetings || [], personality: extractPersonalityDeep(row.card_data || {}), worldbook: dataObj.character_book || (row.category === 'worldbooks' ? row.card_data : null), regexScripts: dataObj.extensions?.regex_scripts || (row.category === 'regex' ? row.card_data : null), createdAt: row.created_at || Date.now() };
 
                             const putTx = db.transaction('assets', 'readwrite');
                             putTx.objectStore('assets').put(asset);
@@ -507,11 +510,11 @@ async function processFile(file, targetCategory = currentTab) {
                 if (asset.emojiList) {
                     cardData.emojiList = asset.emojiList;
                 }
-                if (asset.emojiList) {
-                    cardData.emojiList = asset.emojiList;
+                if (asset.tags && Array.isArray(asset.tags)) {
+                    cardData.tags = asset.tags;
                 }
-                if (asset.emojiList) {
-                    cardData.emojiList = asset.emojiList;
+                if (asset.url) {
+                    cardData.url = asset.url;
                 }
                 const { error } = await supabaseClient.from('tavern_assets').upsert({
                     id: asset.id,
@@ -696,6 +699,8 @@ async function processFile(file, targetCategory = currentTab) {
                                     rawBuffer: buffer,
                                     cardData: row.card_data,
                                     subCategory: row.card_data?.subCategory || dataObj.subCategory || null,
+                                    tags: row.card_data?.tags || dataObj.tags || (Array.isArray(row.card_data?.card_data?.tags) ? row.card_data.card_data.tags : []) || null,
+                                    url: row.card_data?.url || dataObj.url || (row.category === 'links' ? row.raw_text?.split('\n')[1] : null) || null,
                                     emojiList: row.card_data?.emojiList || dataObj.emojiList || (row.card_data?.data?.emojiList) || null,
                                     rawText: row.raw_text,
                                     firstMes: dataObj.first_mes || '',
@@ -990,18 +995,61 @@ async function processFile(file, targetCategory = currentTab) {
                     await saveAsset(currentItem);
                     renderOverviewTags();
                     renderTagFilterBar();
+                    renderItems();
                     showToast('🏷️', `已成功添加标签 “${tagStr}”`);
                 }
             }
         }
 
-        function removeTagFromCurrentItem(tag) {
+        async function editTagOnCurrentItem(oldTag) {
             if (!currentItem || !currentItem.tags) return;
+            const newTag = prompt(`修改标签 “${oldTag}” 为：`, oldTag);
+            if (newTag === null) return;
+            const trimmed = newTag.trim();
+            if (!trimmed) {
+                removeTagFromCurrentItem(oldTag);
+                return;
+            }
+            if (trimmed === oldTag) return;
+            
+            const idx = currentItem.tags.indexOf(oldTag);
+            if (idx !== -1) {
+                currentItem.tags[idx] = trimmed;
+                await saveAsset(currentItem);
+                renderOverviewTags();
+                renderTagFilterBar();
+                renderItems();
+                showToast('✏️', `标签已修改为 “${trimmed}”`);
+            }
+        }
+
+        async function removeTagFromCurrentItem(tag) {
+            if (!currentItem || !currentItem.tags) return;
+            if (!confirm(`确定删除标签 “${tag}” 吗？`)) return;
             currentItem.tags = currentItem.tags.filter(t => t !== tag);
-            saveAsset(currentItem);
+            await saveAsset(currentItem);
             renderOverviewTags();
             renderTagFilterBar();
+            renderItems();
             showToast('🗑️', `已移除标签 “${tag}”`);
+        }
+
+        async function promptManageAssetTags(assetId, e) {
+            if (e && e.stopPropagation) e.stopPropagation();
+            if (e && e.preventDefault) e.preventDefault();
+            const assets = await getAllAssets();
+            const target = assets.find(a => a.id === assetId);
+            if (!target) return;
+            currentItem = target;
+            const existingTags = target.tags || [];
+            const tagStr = prompt(`【管理标签】请输入标签（多个标签用逗号或空格隔开）：`, existingTags.join(', '));
+            if (tagStr === null) return;
+            const newTags = tagStr.split(/[,，\s]+/).map(t => t.trim()).filter(t => t.length > 0);
+            target.tags = Array.from(new Set(newTags));
+            await saveAsset(target);
+            renderTagFilterBar();
+            renderItems();
+            showToast('🏷️', `标签已更新 (${target.tags.length}个)`);
         }
 
         function renderOverviewTags() {
@@ -1015,8 +1063,8 @@ async function processFile(file, targetCategory = currentTab) {
             }
             tags.forEach(tag => {
                 const pill = document.createElement('span');
-                pill.className = "px-2.5 py-0.5 rounded-full bg-[#f8eeee] border border-[#f2dadc] text-[#b86b7a] text-xs font-semibold flex items-center gap-1";
-                pill.innerHTML = `<span>🏷️ ${tag}</span><button onclick="removeTagFromCurrentItem('${tag}')" class="text-[#a38b8d] hover:text-rose-600 text-[10px] ml-0.5">✕</button>`;
+                pill.className = "px-2.5 py-1 rounded-full bg-[#f8eeee] border border-[#f2dadc] text-[#b86b7a] text-xs font-semibold flex items-center gap-1 shadow-2xs group";
+                pill.innerHTML = `<span onclick="editTagOnCurrentItem('${tag}')" class="cursor-pointer hover:underline" title="点击编辑标签">🏷️ ${tag}</span><button onclick="removeTagFromCurrentItem('${tag}')" class="text-[#a38b8d] hover:text-rose-600 font-bold text-xs ml-1" title="删除标签">✕</button>`;
                 container.appendChild(pill);
             });
         }
@@ -1535,8 +1583,8 @@ if (currentTab === 'docs' || currentTab === 'regex') {
                             <button onclick="navigator.clipboard.writeText('${linkUrl}'); showToast('📋', '链接已复制！');" class="px-3 py-2 rounded-xl bg-[#eff6ff] text-[#475569] hover:bg-[#e2e8f0] text-[11px] font-bold transition">
                                 📋 复制
                             </button>
-                            <button onclick="event.stopPropagation(); currentItem = item; promptAddCustomTag();" class="px-3 py-2 rounded-xl bg-[#fdf4f5] text-[#b86b7a] hover:bg-[#f8eeee] text-[11px] font-bold transition">
-                                🏷️ 标签
+                            <button onclick="promptManageAssetTags('${item.id}', event)" class="px-3 py-2 rounded-xl bg-[#fdf4f5] text-[#b86b7a] hover:bg-[#f8eeee] text-[11px] font-bold transition flex items-center gap-1">
+                                🏷️ 标签${item.tags && item.tags.length > 0 ? ` (${item.tags.length})` : ''}
                             </button>
                             <button onclick="deleteSingleAsset('${item.id}', event)" class="px-3 py-2 rounded-xl bg-[#fff1f2] text-[#ef4444] hover:bg-[#fee2e2] text-[11px] font-bold transition">
                                 🗑️
@@ -2195,7 +2243,19 @@ if (currentTab === 'docs' || currentTab === 'regex') {
             }
         }
 
-        function copyText(id) { const text = document.getElementById(id)?.innerText; if (text) { navigator.clipboard.writeText(text); showToast('📋', '文本已复制！'); } }
+        function copyText(id) {
+            const el = document.getElementById(id) || document.getElementById('docFullContentTextarea');
+            const text = el ? (el.value !== undefined ? el.value : el.innerText) : '';
+            if (text) {
+                navigator.clipboard.writeText(text).then(() => {
+                    showToast('📋', '全文人设/文档已成功复制到剪贴板！');
+                }).catch(() => {
+                    if (el && el.select) { el.select(); document.execCommand('copy'); showToast('📋', '已复制！'); }
+                });
+            } else {
+                showToast('⚠️', '暂无内容可复制');
+            }
+        }
 
         // Register PWA Service Worker (不主动卸载，保持 PWA 可安装)
         if ('serviceWorker' in navigator) {
@@ -2819,15 +2879,25 @@ async function saveNewLinkAsset() {
     showToast('🔗', `已成功添加网址链接 “${title}”！`);
 }
 
-function openLinkInDefaultBrowser(url) {
-    if (!url) return;
-    if (window.AndroidApp && typeof window.AndroidApp.openExternalBrowser === 'function') {
-        try {
+function openLinkInDefaultBrowser(url, e) {
+    if (e && e.stopPropagation) e.stopPropagation();
+    if (e && e.preventDefault) e.preventDefault();
+    if (!url || url === '#') return;
+    try {
+        if (window.AndroidApp && typeof window.AndroidApp.openExternalBrowser === 'function') {
             window.AndroidApp.openExternalBrowser(url);
             return;
-        } catch(e) { console.error('Android bridge openExternalBrowser failed', e); }
-    }
-    window.open(url, '_blank', 'noopener,noreferrer');
+        }
+    } catch(err) { console.error('AndroidApp bridge failed', err); }
+    
+    // 强制触发原生外链在新标签页/系统浏览器打开
+    const a = document.createElement('a');
+    a.href = url;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
 }
 
 async function deleteSingleAsset(id, e) {
