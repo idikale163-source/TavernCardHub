@@ -3422,9 +3422,11 @@ window.renameFolder = renameFolder;
 
 
 
+
+
 /* ================= 表情包批量命名逻辑 (Emoji Namer) ================= */
-let namerList = [];
-let namerIsRevealed = false;
+var namerList = [];
+var namerIsRevealed = false;
 
 function namerShowToast(msg) {
     if (typeof showToast === 'function') {
@@ -3435,50 +3437,54 @@ function namerShowToast(msg) {
 }
 
 function namerExtractUrls(text) {
-    const urlRegex = /(https?:\/\/[^\s
-	]+)/gi;
-    const matches = text.match(urlRegex) || [];
-    const set = new Set();
-    const res = [];
-    for (let u of matches) {
-        u = u.replace(/[),;。，]$/, '');
-        if (!set.has(u)) { set.add(u); res.push(u); }
+    var urlRegex = new RegExp('(https?:\/\/[^\\s\\r\\n\\t]+)', 'gi');
+    var matches = text.match(urlRegex) || [];
+    var set = new Set();
+    var res = [];
+    for (var i = 0; i < matches.length; i++) {
+        var u = matches[i].replace(/[),;。，]$/, '');
+        if (!set.has(u)) {
+            set.add(u);
+            res.push(u);
+        }
     }
     return res;
 }
 
 window.namerProcessInput = function(isReplace) {
-    const inputEl = document.getElementById('namerRawInput');
+    var inputEl = document.getElementById('namerRawInput');
     if (!inputEl) return;
-    const text = inputEl.value;
-    const urls = namerExtractUrls(text);
+    var text = inputEl.value;
+    var urls = namerExtractUrls(text);
     if (urls.length === 0) { namerShowToast('未找到有效图片直链'); return; }
 
-    const newItems = urls.map(url => ({
-        id: Date.now() + Math.random().toString(36).substr(2, 6),
-        url: url,
-        name: '',
-        checked: true
-    }));
+    var newItems = urls.map(function(url) {
+        return {
+            id: Date.now() + Math.random().toString(36).substr(2, 6),
+            url: url,
+            name: '',
+            checked: true
+        };
+    });
 
     if (isReplace) {
         namerList = newItems;
     } else {
-        const existUrls = new Set(namerList.map(i => i.url));
-        const filtered = newItems.filter(i => !existUrls.has(i.url));
-        namerList = [...namerList, ...filtered];
+        var existUrls = new Set(namerList.map(function(i) { return i.url; }));
+        var filtered = newItems.filter(function(i) { return !existUrls.has(i.url); });
+        namerList = namerList.concat(filtered);
     }
 
     inputEl.value = '';
     namerIsRevealed = false;
     namerUpdateRevealBtn();
     namerRenderList();
-    namerShowToast(`成功导入 ${urls.length} 个表情！`);
+    namerShowToast('成功导入 ' + urls.length + ' 个表情！');
 };
 
 window.namerRenderList = function() {
-    const container = document.getElementById('namerItemsList');
-    const countEl = document.getElementById('namerCountSpan');
+    var container = document.getElementById('namerItemsList');
+    var countEl = document.getElementById('namerCountSpan');
     if (!container) return;
     if (countEl) countEl.innerText = namerList.length;
     namerUpdateProgress();
@@ -3488,53 +3494,55 @@ window.namerRenderList = function() {
         return;
     }
 
-    const sepInput = document.getElementById('namerSeparator');
-    const sep = sepInput ? sepInput.value : ' - ';
+    var sepInput = document.getElementById('namerSeparator');
+    var sep = sepInput ? sepInput.value : ' - ';
 
-    container.innerHTML = namerList.map((item, index) => {
-        const displayName = item.name.trim() || `表情${index + 1}`;
-        const combined = `${displayName}${sep}${item.url}`;
-        return `
-            <div class="bg-white border border-[#e5e1d8] rounded-xl p-2.5 shadow-2xs space-y-1.5" id="namer-card-${item.id}">
-                <div class="flex items-center gap-2.5">
-                    <input type="checkbox" class="w-4 h-4 accent-[#5b7a68] rounded cursor-pointer" ${item.checked ? 'checked' : ''} onchange="namerToggleItem('${item.id}', this.checked)">
-                    <div class="w-12 h-12 rounded-lg overflow-hidden bg-[#faf9f6] border border-[#e5e1d8] shrink-0 flex items-center justify-center">
-                        <img src="${item.url}" referrerpolicy="no-referrer" loading="lazy" class="w-full h-full object-cover" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                        <div class="text-[9px] text-[#999] text-center hidden">加载失败</div>
-                    </div>
-                    <div class="flex-1">
-                        <input type="text" class="w-full bg-[#faf9f6] border border-[#e5e1d8] rounded-lg px-2.5 py-1.5 text-xs text-[#33383b] outline-none focus:border-[#5b7a68] focus:bg-white transition" value="${item.name}" placeholder="给表情取名..." oninput="namerHandleNameChange('${item.id}', this.value)">
-                    </div>
-                </div>
-                <div class="text-[11px] text-[#555e58] bg-[#edeae1] px-2.5 py-1 rounded font-mono break-all leading-tight ${namerIsRevealed ? 'block' : 'hidden'}" id="namer-url-${item.id}">${combined}</div>
-            </div>
-        `;
-    }).join('');
+    var html = '';
+    for (var i = 0; i < namerList.length; i++) {
+        var item = namerList[i];
+        var displayName = item.name.trim() || ('表情' + (i + 1));
+        var combined = displayName + sep + item.url;
+        var displayClass = namerIsRevealed ? 'block' : 'hidden';
+        html += '<div class="bg-white border border-[#e5e1d8] rounded-xl p-2.5 shadow-2xs space-y-1.5" id="namer-card-' + item.id + '">' +
+            '<div class="flex items-center gap-2.5">' +
+                '<input type="checkbox" class="w-4 h-4 accent-[#5b7a68] rounded cursor-pointer" ' + (item.checked ? 'checked' : '') + ' onchange="namerToggleItem(\'' + item.id + '\', this.checked)">' +
+                '<div class="w-12 h-12 rounded-lg overflow-hidden bg-[#faf9f6] border border-[#e5e1d8] shrink-0 flex items-center justify-center">' +
+                    '<img src="' + item.url + '" referrerpolicy="no-referrer" loading="lazy" class="w-full h-full object-cover" onerror="this.style.display=\'none\'; this.nextElementSibling.style.display=\'block\';">' +
+                    '<div class="text-[9px] text-[#999] text-center hidden">加载失败</div>' +
+                '</div>' +
+                '<div class="flex-1">' +
+                    '<input type="text" class="w-full bg-[#faf9f6] border border-[#e5e1d8] rounded-lg px-2.5 py-1.5 text-xs text-[#33383b] outline-none focus:border-[#5b7a68] focus:bg-white transition" value="' + item.name + '" placeholder="给表情取名..." oninput="namerHandleNameChange(\'' + item.id + '\', this.value)">' +
+                '</div>' +
+            '</div>' +
+            '<div class="text-[11px] text-[#555e58] bg-[#edeae1] px-2.5 py-1 rounded font-mono break-all leading-tight ' + displayClass + '" id="namer-url-' + item.id + '">' + combined + '</div>' +
+        '</div>';
+    }
+    container.innerHTML = html;
 };
 
 window.namerHandleNameChange = function(id, val) {
-    const target = namerList.find(i => i.id === id);
+    var target = namerList.find(function(i) { return i.id === id; });
     if (target) {
         target.name = val;
         namerUpdateProgress();
         if (namerIsRevealed) {
-            const sepInput = document.getElementById('namerSeparator');
-            const sep = sepInput ? sepInput.value : ' - ';
-            const el = document.getElementById(`namer-url-${id}`);
-            if (el) el.innerText = `${val.trim() || '未命名'}${sep}${target.url}`;
+            var sepInput = document.getElementById('namerSeparator');
+            var sep = sepInput ? sepInput.value : ' - ';
+            var el = document.getElementById('namer-url-' + id);
+            if (el) el.innerText = (val.trim() || '未命名') + sep + target.url;
         }
     }
 };
 
 window.namerToggleItem = function(id, checked) {
-    const target = namerList.find(i => i.id === id);
+    var target = namerList.find(function(i) { return i.id === id; });
     if (target) target.checked = checked;
 };
 
 window.namerToggleSelectAll = function() {
     if (namerList.length === 0) return;
-    const allChecked = namerList.every(i => i.checked);
-    namerList.forEach(i => i.checked = !allChecked);
+    var allChecked = namerList.every(function(i) { return i.checked; });
+    namerList.forEach(function(i) { i.checked = !allChecked; });
     namerRenderList();
     namerShowToast(!allChecked ? '已全选' : '已取消全选');
 };
@@ -3547,7 +3555,7 @@ window.namerToggleRevealUrls = function() {
 };
 
 function namerUpdateRevealBtn() {
-    const btn = document.getElementById('namerRevealBtn');
+    var btn = document.getElementById('namerRevealBtn');
     if (!btn) return;
     if (namerIsRevealed) {
         btn.innerText = '隐藏链接';
@@ -3563,13 +3571,13 @@ window.namerUpdateVisibleUrls = function() {
 };
 
 function namerUpdateProgress() {
-    const total = namerList.length;
-    const namedCount = namerList.filter(i => i.name && i.name.trim().length > 0).length;
-    const tag = document.getElementById('namerProgressTag');
-    const bar = document.getElementById('namerProgressBar');
-    if (tag) tag.innerText = `${namedCount} / ${total} 已命名`;
-    const pct = total === 0 ? 0 : Math.round((namedCount / total) * 100);
-    if (bar) bar.style.width = `${pct}%`;
+    var total = namerList.length;
+    var namedCount = namerList.filter(function(i) { return i.name && i.name.trim().length > 0; }).length;
+    var tag = document.getElementById('namerProgressTag');
+    var bar = document.getElementById('namerProgressBar');
+    if (tag) tag.innerText = namedCount + ' / ' + total + ' 已命名';
+    var pct = total === 0 ? 0 : Math.round((namedCount / total) * 100);
+    if (bar) bar.style.width = pct + '%';
 }
 
 window.namerClearList = function() {
@@ -3584,11 +3592,11 @@ window.namerClearList = function() {
 };
 
 window.namerHandleFileImport = function(e) {
-    const file = e.target.files[0];
+    var file = e.target.files[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-        const inputEl = document.getElementById('namerRawInput');
+    var reader = new FileReader();
+    reader.onload = function(event) {
+        var inputEl = document.getElementById('namerRawInput');
         if (inputEl) {
             inputEl.value = event.target.result;
             namerProcessInput(false);
@@ -3599,35 +3607,34 @@ window.namerHandleFileImport = function(e) {
 };
 
 function namerGenerateExportData() {
-    const sepInput = document.getElementById('namerSeparator');
-    const sep = sepInput ? sepInput.value : ' - ';
-    const selected = namerList.filter(i => i.checked);
+    var sepInput = document.getElementById('namerSeparator');
+    var sep = sepInput ? sepInput.value : ' - ';
+    var selected = namerList.filter(function(i) { return i.checked; });
     if (selected.length === 0) return null;
-    return selected.map((i, idx) => {
-        const n = i.name.trim() || `表情${idx + 1}`;
-        return `${n}${sep}${i.url}`;
-    }).join('
-');
+    return selected.map(function(i, idx) {
+        var n = i.name.trim() || ('表情' + (idx + 1));
+        return n + sep + i.url;
+    }).join('\n');
 }
 
 window.namerCopyExportText = function() {
-    const text = namerGenerateExportData();
+    var text = namerGenerateExportData();
     if (!text) return namerShowToast('请先勾选表情');
-    navigator.clipboard.writeText(text).then(() => {
+    navigator.clipboard.writeText(text).then(function() {
         namerShowToast('已复制全部导出内容！');
-    }).catch(() => {
+    }).catch(function() {
         namerShowToast('复制失败，请尝试下载 TXT');
     });
 };
 
 window.namerExportTxtFile = function() {
-    const text = namerGenerateExportData();
+    var text = namerGenerateExportData();
     if (!text) return namerShowToast('请先勾选表情');
-    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-    const a = document.createElement('a');
+    var blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    var a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    const dateStr = new Date().toISOString().slice(0, 10);
-    a.download = `表情包批量命名_${dateStr}.txt`;
+    var dateStr = new Date().toISOString().slice(0, 10);
+    a.download = '表情包批量命名_' + dateStr + '.txt';
     a.click();
     URL.revokeObjectURL(a.href);
     namerShowToast('TXT 文件已开始下载');
