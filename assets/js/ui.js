@@ -1599,7 +1599,14 @@ if (currentTab === 'docs' || currentTab === 'regex') {
                             <img src="${imgUrl}" class="w-full h-full object-cover rounded-lg" onerror="this.src='https://placehold.co/300x400/fdf4f5/d88c9a?text=图片加载失败'">
                         </div>
                         <div>
-                            <h3 class="font-bold text-xs text-[#4a3e3d] text-center truncate px-0.5">${item.name}</h3>${item.tags && item.tags.length > 0 ? `<div class="flex items-center justify-center gap-1 flex-wrap pt-0.5">${item.tags.slice(0, 2).map(t => `<span class="text-[9px] px-1.5 py-0.2 rounded bg-[#f8eeee] text-[#b86b7a] font-medium">🏷️ ${t}</span>`).join('')}</div>` : ''}
+                            <h3 class="font-bold text-xs text-[#4a3e3d] text-center truncate px-0.5">${item.name}</h3>
+                            <div class="flex items-center justify-center gap-1 flex-wrap pt-1">
+                                ${item.tags && item.tags.length > 0 ? item.tags.map(t => `
+                                    <span ontouchstart="handleGalleryTagTouchStart('${t}', '${item.id}', event)" ontouchend="handleGalleryTagTouchEnd('${t}', '${item.id}', event)" onclick="handleGalleryTagClick('${t}', '${item.id}', event)" class="text-[10px] px-2 py-0.5 rounded-full bg-[#f8eeee] text-[#b86b7a] font-medium border border-[#f2dadc] active:scale-95 cursor-pointer select-none" title="长按复制，点击编辑/删除">
+                                        🏷️ ${t}
+                                    </span>
+                                `).join('') : `<button type="button" onclick="promptManageAssetTags('${item.id}', event)" class="text-[9px] px-2 py-0.5 rounded-full bg-[#faf5f5] text-[#b86b7a] border border-dashed border-[#f2dadc] hover:bg-[#f8eeee] transition">+加标签</button>`}
+                            </div>
                         </div>
                     `;
                 } else if (currentTab === 'sandbox' || item.category === 'sandbox') {
@@ -1809,8 +1816,18 @@ if (currentTab === 'docs' || currentTab === 'regex') {
                                 </button>
                             </div>
                             <div class="text-sm font-bold text-[#4a3e3d] truncate pt-1">${item.name}</div>
+                            
+                            <!-- 图库标签栏 (长按复制/点击编辑/删除) -->
+                            <div class="p-2.5 bg-[#fdf6f7] rounded-xl border border-[#f2dadc] text-left space-y-1.5">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-bold text-[#8c7173]">🏷️ 图片标签 (长按复制 · 点击改删):</span>
+                                    <button type="button" onclick="promptAddCustomTag()" class="px-2.5 py-0.5 rounded-full bg-[#d88c9a] text-white text-[11px] font-bold shadow-2xs hover:bg-[#c97b8b] transition">＋ 新增标签</button>
+                                </div>
+                                <div id="galleryDetailTagsContainer" class="flex flex-wrap items-center gap-1.5 pt-1"></div>
+                            </div>
+
                             <div class="flex justify-center py-2">
-                                <img src="${imgUrl}" class="max-w-full rounded-2xl shadow-md border border-[#f5e1e3] max-h-[65vh] object-contain">
+                                <img src="${imgUrl}" class="max-w-full rounded-2xl shadow-md border border-[#f5e1e3] max-h-[60vh] object-contain">
                             </div>
                             <div class="grid grid-cols-2 gap-2.5 pt-2">
                                 <button type="button" onclick="downloadGalleryImage(currentItem);" class="w-full py-2.5 rounded-xl bg-[#d88c9a] text-white font-bold text-xs shadow-xs hover:bg-[#c97b8b] transition">
@@ -3601,3 +3618,95 @@ function initNamerFloatingBtnDrag() {
 
     window.addEventListener('touchend', function() { isDragging = false; });
 }
+
+
+/* ================= 图库标签交互增强 (长按复制/点击编辑/删除) ================= */
+let galleryTagPressTimer = null;
+let isGalleryTagLongPress = false;
+
+window.handleGalleryTagTouchStart = function(tag, assetId, e) {
+    isGalleryTagLongPress = false;
+    if (galleryTagPressTimer) clearTimeout(galleryTagPressTimer);
+    galleryTagPressTimer = setTimeout(() => {
+        isGalleryTagLongPress = true;
+        navigator.clipboard.writeText(tag).then(() => {
+            showToast('📋', `已复制标签: “${tag}”`);
+        }).catch(() => {
+            showToast('📋', `标签: ${tag}`);
+        });
+        if (window.navigator && window.navigator.vibrate) {
+            window.navigator.vibrate(50);
+        }
+    }, 500);
+};
+
+window.handleGalleryTagTouchEnd = function(tag, assetId, e) {
+    if (galleryTagPressTimer) clearTimeout(galleryTagPressTimer);
+};
+
+window.handleGalleryTagClick = function(tag, assetId, e) {
+    if (e && e.stopPropagation) e.stopPropagation();
+    if (e && e.preventDefault) e.preventDefault();
+    if (isGalleryTagLongPress) {
+        isGalleryTagLongPress = false;
+        return;
+    }
+    // 弹窗询问：编辑、删除还是复制
+    const choice = prompt(`标签【${tag}】操作：\n1. 输入新名字直接修改\n2. 留空确定则删除该标签\n3. 点击取消返回`, tag);
+    if (choice === null) return;
+    const trimmed = choice.trim();
+    if (!trimmed) {
+        removeGalleryTagDirect(tag, assetId);
+    } else if (trimmed !== tag) {
+        editGalleryTagDirect(tag, trimmed, assetId);
+    }
+};
+
+async function editGalleryTagDirect(oldTag, newTag, assetId) {
+    const assets = await getAllAssets();
+    const target = assetId ? assets.find(a => a.id === assetId) : currentItem;
+    if (!target || !target.tags) return;
+    const idx = target.tags.indexOf(oldTag);
+    if (idx !== -1) {
+        target.tags[idx] = newTag;
+        await saveAsset(target);
+        if (currentItem && currentItem.id === target.id) {
+            currentItem = target;
+            renderGalleryDetailTags();
+        }
+        renderTagFilterBar();
+        renderItems();
+        showToast('✏️', `标签已更新为 “${newTag}”`);
+    }
+}
+
+async function removeGalleryTagDirect(tag, assetId) {
+    const assets = await getAllAssets();
+    const target = assetId ? assets.find(a => a.id === assetId) : currentItem;
+    if (!target || !target.tags) return;
+    target.tags = target.tags.filter(t => t !== tag);
+    await saveAsset(target);
+    if (currentItem && currentItem.id === target.id) {
+        currentItem = target;
+        renderGalleryDetailTags();
+    }
+    renderTagFilterBar();
+    renderItems();
+    showToast('🗑️', `已删除标签 “${tag}”`);
+}
+
+window.renderGalleryDetailTags = function() {
+    const box = document.getElementById('galleryDetailTagsContainer');
+    if (!box || !currentItem) return;
+    const tags = currentItem.tags || [];
+    if (tags.length === 0) {
+        box.innerHTML = `<span class="text-xs text-[#a38b8d] italic">暂无标签</span>`;
+        return;
+    }
+    box.innerHTML = tags.map(t => `
+        <span ontouchstart="handleGalleryTagTouchStart('${t}', '${currentItem.id}', event)" ontouchend="handleGalleryTagTouchEnd('${t}', '${currentItem.id}', event)" onclick="handleGalleryTagClick('${t}', '${currentItem.id}', event)" class="px-2.5 py-1 rounded-full bg-[#f8eeee] border border-[#f2dadc] text-[#b86b7a] text-xs font-semibold flex items-center gap-1 shadow-2xs cursor-pointer select-none active:scale-95 transition" title="长按复制，点击编辑/删除">
+            🏷️ ${t}
+            <span onclick="event.stopPropagation(); removeGalleryTagDirect('${t}', '${currentItem.id}')" class="text-[#a38b8d] hover:text-rose-600 font-bold ml-0.5 text-xs">✕</span>
+        </span>
+    `).join('');
+};
