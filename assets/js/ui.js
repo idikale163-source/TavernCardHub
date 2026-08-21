@@ -107,7 +107,10 @@ function switchTab(tab, e) {
     if (themePanel) themePanel.classList.add('hidden');
     if (emojiPanel) emojiPanel.classList.add('hidden');
     if (linksPanel) linksPanel.classList.add('hidden');
-    if (emojiNamerPanel) emojiNamerPanel.classList.add('hidden');
+    if (emojiNamerPanel) {
+        emojiNamerPanel.classList.add('hidden');
+        emojiNamerPanel.classList.remove('flex');
+    }
     if (itemsGrid) itemsGrid.classList.remove('hidden');
     if (searchBar) searchBar.classList.remove('hidden');
 
@@ -134,7 +137,10 @@ function switchTab(tab, e) {
         if (themePanel) themePanel.classList.remove('hidden');
         renderItems();
     } else if (tab === 'emoji_namer') {
-        if (emojiNamerPanel) emojiNamerPanel.classList.remove('hidden');
+        if (emojiNamerPanel) {
+            emojiNamerPanel.classList.remove('hidden');
+            emojiNamerPanel.classList.add('flex');
+        }
         if (itemsGrid) itemsGrid.classList.add('hidden');
         if (searchBar) searchBar.classList.add('hidden');
     } else if (tab === 'links') {
