@@ -141,14 +141,11 @@ function switchTab(tab, e) {
         if (themePanel) themePanel.classList.remove('hidden');
         renderItems();
     } else if (tab === 'emoji_namer') {
-        const listView = document.getElementById('listView');
-        const searchArea = document.getElementById('searchInput')?.closest('.bg-white');
-        if (listView) listView.classList.add('hidden');
-        if (searchArea) searchArea.classList.add('hidden');
-        if (emojiNamerPanel) {
-            emojiNamerPanel.classList.remove('hidden');
-            emojiNamerPanel.classList.add('flex');
-        }
+        if (emojiNamerPanel) emojiNamerPanel.classList.remove('hidden');
+        if (itemsGrid) itemsGrid.classList.add('hidden');
+        if (searchBar) searchBar.classList.add('hidden');
+        if (typeof namerRenderList === 'function') namerRenderList();
+    }
     } else if (tab === 'links') {
         if (linksPanel) { linksPanel.classList.remove('hidden'); populateLinkCategorySelect(); }
         renderItems();
@@ -1231,6 +1228,15 @@ window.saveGalleryUrl = saveGalleryUrl;
             }
         }
         async function renderItems() {
+            if (currentTab === 'emoji_namer') {
+                const emojiNamerPanel = document.getElementById('emojiNamerBuilderPanel');
+                const itemsGrid = document.getElementById('itemsContainer');
+                const searchBar = document.getElementById('searchInput')?.parentElement?.parentElement;
+                if (emojiNamerPanel) emojiNamerPanel.classList.remove('hidden');
+                if (itemsGrid) itemsGrid.classList.add('hidden');
+                if (searchBar) searchBar.classList.add('hidden');
+                return;
+            }
             const assets = await getAllAssets(), keyword = document.getElementById('searchInput').value.toLowerCase().trim(), container = document.getElementById('itemsContainer');
             container.innerHTML = '';
 
