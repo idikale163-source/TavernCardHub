@@ -107,11 +107,12 @@ function switchTab(tab, e) {
     if (themePanel) themePanel.classList.add('hidden');
     if (emojiPanel) emojiPanel.classList.add('hidden');
     if (linksPanel) linksPanel.classList.add('hidden');
-    if (emojiNamerPanel) emojiNamerPanel.classList.add('hidden');
+    if (emojiNamerPanel) {
+        emojiNamerPanel.classList.add('hidden');
+        emojiNamerPanel.classList.remove('flex');
+    }
     if (itemsGrid) itemsGrid.classList.remove('hidden');
     if (searchBar) searchBar.classList.remove('hidden');
-    const topSearchArea = document.getElementById('topSearchFilterArea') || document.getElementById('searchInput')?.closest('.bg-white');
-    if (topSearchArea) topSearchArea.classList.remove('hidden');
 
     if (tab === 'fonts') {
         if (fontsPanel) fontsPanel.classList.remove('hidden');
@@ -136,14 +137,11 @@ function switchTab(tab, e) {
         if (themePanel) themePanel.classList.remove('hidden');
         renderItems();
     } else if (tab === 'emoji_namer') {
-        const emojiNamerPanel = document.getElementById('emojiNamerBuilderPanel');
         if (emojiNamerPanel) {
             emojiNamerPanel.classList.remove('hidden');
             emojiNamerPanel.classList.add('flex');
             initFloatingBackButton();
         }
-        if (typeof namerRenderList === 'function') namerRenderList();
-    }
         if (typeof namerRenderList === 'function') namerRenderList();
     } else if (tab === 'links') {
         if (linksPanel) { linksPanel.classList.remove('hidden'); populateLinkCategorySelect(); }
@@ -3485,8 +3483,7 @@ async function downloadGalleryImage(item) {
 }
 window.downloadGalleryImage = downloadGalleryImage;
 
-
-/* ================= 表情包批量命名逻辑 (Emoji Namer) ================= */
+/* ================= 表情包批量命名与悬浮返回逻辑 ================= */
 var namerList = [];
 var namerIsRevealed = false;
 
@@ -3552,7 +3549,7 @@ window.namerRenderList = function() {
     namerUpdateProgress();
 
     if (namerList.length === 0) {
-        container.innerHTML = '<div class="text-center py-8 text-xs text-[#828a8f]">暂无表情，请在上方粘贴链接后追加</div>';
+        container.innerHTML = '<div class="text-center py-16 text-xs text-[#828a8f] bg-white/60 rounded-2xl border border-[#e5e1d8]">暂无表情，请在上方粘贴链接后追加</div>';
         return;
     }
 
@@ -3700,4 +3697,93 @@ window.namerExportTxtFile = function() {
     a.click();
     URL.revokeObjectURL(a.href);
     namerShowToast('TXT 文件已开始下载');
+};
+
+function initFloatingBackButton() {
+    var btn = document.getElementById('namerFloatingBackBtn');
+    if (!btn || btn.dataset.inited) return;
+    btn.dataset.inited = 'true';
+
+    var isDragging = false;
+    var startX, startY, initialLeft, initialTop;
+    var hasMoved = false;
+
+    btn.addEventListener('click', function() {
+        if (hasMoved) return;
+        closeEmojiNamer();
+    });
+
+    btn.addEventListener('touchstart', function(e) {
+        var touch = e.touches[0];
+        isDragging = true;
+        hasMoved = false;
+        startX = touch.clientX;
+        startY = touch.clientY;
+        var rect = btn.getBoundingClientRect();
+        initialLeft = rect.left;
+        initialTop = rect.top;
+    }, { passive: true });
+
+    window.addEventListener('touchmove', function(e) {
+        if (!isDragging) return;
+        var touch = e.touches[0];
+        var dx = touch.clientX - startX;
+        var dy = touch.clientY - startY;
+        if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+            hasMoved = true;
+        }
+        var newX = initialLeft + dx;
+        var newY = initialTop + dy;
+        newX = Math.max(8, Math.min(window.innerWidth - btn.offsetWidth - 8, newX));
+        newY = Math.max(8, Math.min(window.innerHeight - btn.offsetHeight - 8, newY));
+        btn.style.left = newX + 'px';
+        btn.style.top = newY + 'px';
+        btn.style.right = 'auto';
+        btn.style.bottom = 'auto';
+    }, { passive: true });
+
+    window.addEventListener('touchend', function() {
+        isDragging = false;
+    });
+
+    btn.addEventListener('mousedown', function(e) {
+        isDragging = true;
+        hasMoved = false;
+        startX = e.clientX;
+        startY = e.clientY;
+        var rect = btn.getBoundingClientRect();
+        initialLeft = rect.left;
+        initialTop = rect.top;
+        e.preventDefault();
+    });
+
+    window.addEventListener('mousemove', function(e) {
+        if (!isDragging) return;
+        var dx = e.clientX - startX;
+        var dy = e.clientY - startY;
+        if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+            hasMoved = true;
+        }
+        var newX = initialLeft + dx;
+        var newY = initialTop + dy;
+        newX = Math.max(8, Math.min(window.innerWidth - btn.offsetWidth - 8, newX));
+        newY = Math.max(8, Math.min(window.innerHeight - btn.offsetHeight - 8, newY));
+        btn.style.left = newX + 'px';
+        btn.style.top = newY + 'px';
+    });
+
+    window.addEventListener('mouseup', function() {
+        isDragging = false;
+    });
+}
+
+window.closeEmojiNamer = function() {
+    var emojiNamerPanel = document.getElementById('emojiNamerBuilderPanel');
+    if (emojiNamerPanel) {
+        emojiNamerPanel.classList.add('hidden');
+        emojiNamerPanel.classList.remove('flex');
+    }
+    if (typeof switchTab === 'function') {
+        switchTab('cards');
+    }
 };
