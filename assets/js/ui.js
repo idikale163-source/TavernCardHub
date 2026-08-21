@@ -3495,7 +3495,7 @@ window.namerRenderList = function() {
     }
 
     var sepInput = document.getElementById('namerSeparator');
-    var sep = sepInput ? sepInput.value : ' - ';
+    var sep = sepInput ? sepInput.value : ':';
 
     var html = '';
     for (var i = 0; i < namerList.length; i++) {
@@ -3527,7 +3527,7 @@ window.namerHandleNameChange = function(id, val) {
         namerUpdateProgress();
         if (namerIsRevealed) {
             var sepInput = document.getElementById('namerSeparator');
-            var sep = sepInput ? sepInput.value : ' - ';
+            var sep = sepInput ? sepInput.value : ':';
             var el = document.getElementById('namer-url-' + id);
             if (el) el.innerText = (val.trim() || '未命名') + sep + target.url;
         }
@@ -3608,7 +3608,7 @@ window.namerHandleFileImport = function(e) {
 
 function namerGenerateExportData() {
     var sepInput = document.getElementById('namerSeparator');
-    var sep = sepInput ? sepInput.value : ' - ';
+    var sep = sepInput ? sepInput.value : ':';
     var selected = namerList.filter(function(i) { return i.checked; });
     if (selected.length === 0) return null;
     return selected.map(function(i, idx) {
