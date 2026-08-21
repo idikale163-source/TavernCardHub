@@ -112,6 +112,10 @@ function switchTab(tab, e) {
         emojiNamerPanel.classList.remove('flex');
     }
     if (itemsGrid) itemsGrid.classList.remove('hidden');
+    const listView = document.getElementById('listView');
+    const searchArea = document.getElementById('searchInput')?.closest('.bg-white');
+    if (listView) listView.classList.remove('hidden');
+    if (searchArea) searchArea.classList.remove('hidden');
     if (searchBar) searchBar.classList.remove('hidden');
 
     if (tab === 'fonts') {
@@ -137,12 +141,14 @@ function switchTab(tab, e) {
         if (themePanel) themePanel.classList.remove('hidden');
         renderItems();
     } else if (tab === 'emoji_namer') {
+        const listView = document.getElementById('listView');
+        const searchArea = document.getElementById('searchInput')?.closest('.bg-white');
+        if (listView) listView.classList.add('hidden');
+        if (searchArea) searchArea.classList.add('hidden');
         if (emojiNamerPanel) {
             emojiNamerPanel.classList.remove('hidden');
             emojiNamerPanel.classList.add('flex');
         }
-        if (itemsGrid) itemsGrid.classList.add('hidden');
-        if (searchBar) searchBar.classList.add('hidden');
     } else if (tab === 'links') {
         if (linksPanel) { linksPanel.classList.remove('hidden'); populateLinkCategorySelect(); }
         renderItems();
