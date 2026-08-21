@@ -107,15 +107,8 @@ function switchTab(tab, e) {
     if (themePanel) themePanel.classList.add('hidden');
     if (emojiPanel) emojiPanel.classList.add('hidden');
     if (linksPanel) linksPanel.classList.add('hidden');
-    if (emojiNamerPanel) {
-        emojiNamerPanel.classList.add('hidden');
-        emojiNamerPanel.classList.remove('flex');
-    }
+    if (emojiNamerPanel) emojiNamerPanel.classList.add('hidden');
     if (itemsGrid) itemsGrid.classList.remove('hidden');
-    const listView = document.getElementById('listView');
-    const searchArea = document.getElementById('searchInput')?.closest('.bg-white');
-    if (listView) listView.classList.remove('hidden');
-    if (searchArea) searchArea.classList.remove('hidden');
     if (searchBar) searchBar.classList.remove('hidden');
 
     if (tab === 'fonts') {
@@ -144,8 +137,6 @@ function switchTab(tab, e) {
         if (emojiNamerPanel) emojiNamerPanel.classList.remove('hidden');
         if (itemsGrid) itemsGrid.classList.add('hidden');
         if (searchBar) searchBar.classList.add('hidden');
-        if (typeof namerRenderList === 'function') namerRenderList();
-    }
     } else if (tab === 'links') {
         if (linksPanel) { linksPanel.classList.remove('hidden'); populateLinkCategorySelect(); }
         renderItems();
@@ -1228,15 +1219,6 @@ window.saveGalleryUrl = saveGalleryUrl;
             }
         }
         async function renderItems() {
-            if (currentTab === 'emoji_namer') {
-                const emojiNamerPanel = document.getElementById('emojiNamerBuilderPanel');
-                const itemsGrid = document.getElementById('itemsContainer');
-                const searchBar = document.getElementById('searchInput')?.parentElement?.parentElement;
-                if (emojiNamerPanel) emojiNamerPanel.classList.remove('hidden');
-                if (itemsGrid) itemsGrid.classList.add('hidden');
-                if (searchBar) searchBar.classList.add('hidden');
-                return;
-            }
             const assets = await getAllAssets(), keyword = document.getElementById('searchInput').value.toLowerCase().trim(), container = document.getElementById('itemsContainer');
             container.innerHTML = '';
 
@@ -1789,7 +1771,7 @@ if (currentTab === 'docs' || currentTab === 'regex') {
                                 <img src="${imgUrl}" class="max-w-full rounded-2xl shadow-md border border-[#f5e1e3] max-h-[65vh] object-contain">
                             </div>
                             <div class="grid grid-cols-2 gap-2.5 pt-2">
-                                <button type="button" onclick="const a = document.createElement('a'); a.href='${imgUrl}'; a.download='${item.name}.png'; a.click();" class="w-full py-2.5 rounded-xl bg-[#d88c9a] text-white font-bold text-xs shadow-xs hover:bg-[#c97b8b] transition">
+                                <button type="button" onclick="downloadGalleryImage(currentItem);" class="w-full py-2.5 rounded-xl bg-[#d88c9a] text-white font-bold text-xs shadow-xs hover:bg-[#c97b8b] transition">
                                     📥 保存原图
                                 </button>
                                 <button type="button" onclick="deleteCurrentItem()" class="w-full py-2.5 rounded-xl bg-[#f5e1e3] text-[#c95368] font-bold text-xs hover:bg-[#f0cfd3] transition">
@@ -3440,6 +3422,60 @@ window.renameFolder = renameFolder;
 
 
 
+async function downloadGalleryImage(item) {
+    if (!item) return;
+    const filename = (item.name ? item.name.replace(/\.[^/.]+$/, "") : "image_" + Date.now()) + ".png";
+    showToast("📥", "正在准备保存图片...");
+    
+    try {
+        if (item.rawBuffer instanceof ArrayBuffer) {
+            downloadBuffer(item.rawBuffer, filename, item.fileType || "image/png");
+            return;
+        }
+        if (item.cover instanceof Blob || item.cover instanceof File) {
+            const buf = await item.cover.arrayBuffer();
+            downloadBuffer(buf, filename, item.cover.type || "image/png");
+            return;
+        }
+        const imgUrl = getAssetImageUrl(item);
+        if (imgUrl) {
+            if (imgUrl.startsWith("data:image")) {
+                const base64Data = imgUrl.split(",")[1];
+                if (window.AndroidApp && typeof window.AndroidApp.saveBase64File === "function") {
+                    window.AndroidApp.saveBase64File(base64Data, filename, "image/png");
+                    return;
+                }
+            }
+            if (imgUrl.startsWith("blob:")) {
+                const res = await fetch(imgUrl);
+                const blob = await res.blob();
+                const buf = await blob.arrayBuffer();
+                downloadBuffer(buf, filename, blob.type || "image/png");
+                return;
+            }
+            // 远程直链
+            if (window.AndroidApp && typeof window.AndroidApp.saveBase64File === "function") {
+                const res = await fetch(imgUrl);
+                const blob = await res.blob();
+                const buf = await blob.arrayBuffer();
+                downloadBuffer(buf, filename, blob.type || "image/png");
+                return;
+            }
+            const a = document.createElement("a");
+            a.href = imgUrl;
+            a.download = filename;
+            a.target = "_blank";
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => a.remove(), 1000);
+            showToast("📥", "已触发图片保存/下载！");
+        }
+    } catch(err) {
+        console.error("Download image error:", err);
+        showToast("❌", "图片保存失败：" + err.message);
+    }
+}
+window.downloadGalleryImage = downloadGalleryImage;
 
 
 /* ================= 表情包批量命名逻辑 (Emoji Namer) ================= */
