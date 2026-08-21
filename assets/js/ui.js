@@ -466,7 +466,6 @@ async function processFile(file, targetCategory = currentTab) {
                                 continue;
                             }
                             const asset = { id: row.id, category: row.category, name: row.name, fileType: row.file_type, rawBuffer: buffer, cardData: row.card_data, subCategory: row.card_data?.subCategory || dataObj.subCategory || null,
-                                    cover_base64: row.card_data?.cover_base64 || null,
                                     tags: row.card_data?.tags || dataObj.tags || (Array.isArray(row.card_data?.card_data?.tags) ? row.card_data.card_data.tags : []) || null,
                                     url: row.card_data?.url || dataObj.url || (row.category === 'links' ? row.raw_text?.split('\n')[1] : null) || null, emojiList: row.card_data?.emojiList || dataObj.emojiList || (row.card_data?.data?.emojiList) || null, rawText: row.raw_text, firstMes: dataObj.first_mes || '', alternateGreetings: dataObj.alternate_greetings || [], personality: extractPersonalityDeep(row.card_data || {}), worldbook: dataObj.character_book || (row.category === 'worldbooks' ? row.card_data : null), regexScripts: dataObj.extensions?.regex_scripts || (row.category === 'regex' ? row.card_data : null), createdAt: row.created_at || Date.now() };
 
@@ -715,7 +714,6 @@ async function processFile(file, targetCategory = currentTab) {
                                     rawBuffer: buffer,
                                     cardData: row.card_data,
                                     subCategory: row.card_data?.subCategory || dataObj.subCategory || null,
-                                    cover_base64: row.card_data?.cover_base64 || null,
                                     tags: row.card_data?.tags || dataObj.tags || (Array.isArray(row.card_data?.card_data?.tags) ? row.card_data.card_data.tags : []) || null,
                                     url: row.card_data?.url || dataObj.url || (row.category === 'links' ? row.raw_text?.split('\n')[1] : null) || null,
                                     emojiList: row.card_data?.emojiList || dataObj.emojiList || (row.card_data?.data?.emojiList) || null,
@@ -1245,25 +1243,28 @@ async function processFile(file, targetCategory = currentTab) {
         if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', () => { bindGalleryUploadControls(); if (typeof initCustomCss === 'function') initCustomCss(); }, {once:true}); } else { bindGalleryUploadControls(); if (typeof initCustomCss === 'function') initCustomCss(); }
 
         async function saveLocalGalleryPictures() {
-            if (isGallerySaving) return;
-
+            if (isGallerySaving) return; // 拦截二次重复保存
+            
             const inputNow = document.getElementById('galleryFileInput');
             if (!pendingGalleryFiles.length && inputNow && inputNow.files && inputNow.files.length) {
                 pendingGalleryFiles = Array.from(inputNow.files);
             }
-
+            
             const files = pendingGalleryFiles.slice();
-            pendingGalleryFiles = [];
+            pendingGalleryFiles = []; // 立刻清空全局待保存文件队列，切断重复保存数据源
             clearGalleryPreview();
+
             if (inputNow) inputNow.value = '';
+
             const titleInput = document.getElementById('galleryTitleInput');
             const title = titleInput?.value.trim() || '';
 
-            if (!files.length) {
-                showToast('⚠️', '请先选择本地图片');
-                return;
+            if (!files.length) { 
+                showToast('⚠️', '请先选择本地图片'); 
+                return; 
             }
-            window.saveLocalGalleryPictures = saveLocalGalleryPictures;
+window.saveLocalGalleryPictures = saveLocalGalleryPictures;
+
 
             isGallerySaving = true;
             try {
@@ -1272,76 +1273,492 @@ async function processFile(file, targetCategory = currentTab) {
                     const file = files[i];
                     const name = file.name.replace(/\.[^/.]+$/, '') || `图片_${Date.now()}_${i}`;
                     const assetId = 'asset_' + Date.now() + '_' + i + '_' + Math.random().toString(36).slice(2, 7);
-
-                    const dataUrl = await new Promise((resolve, reject) => {
-                        const reader = new FileReader();
-                        reader.onload = () => resolve(reader.result);
-                        reader.onerror = reject;
-                        reader.readAsDataURL(file);
-                    });
-
                     await saveAsset({
                         id: assetId,
                         category: 'gallery',
                         name: files.length === 1 && title ? title : (title ? `${title}_${i+1}` : name),
                         fileType: file.type || 'image/png',
-                        cover_base64: dataUrl,
+                        cover: new Blob([file], { type: file.type || 'image/png' }),
                         subCategory: currentFolderOpened || '',
                         createdAt: Date.now() + i
                     });
                 }
-
+                
                 if (titleInput) titleInput.value = '';
-                allAssetsCache = null;
-                updateBadges();
+                allAssetsCache = null; 
+                updateBadges(); 
                 await renderItems();
                 showToast('🎉', `成功存入 ${files.length} 张图片`);
-            } catch (err) {
-                console.error('local gallery save failed', err);
-                showToast('❌', `保存失败: ${err.message || err}`);
+            } catch (err) { 
+                console.error('local gallery save failed', err); 
+                showToast('❌', `本地图片保存失败：${err.message || err}`); 
             } finally {
                 isGallerySaving = false;
             }
         }
-        
+
+        let isGalleryUrlSaving = false;
         async function saveGalleryUrl() {
-            if (isGalleryUrlSaving) return;
+            if (isGalleryUrlSaving) return; // 防抖锁拦截重复保存
             const urlInput = document.getElementById('galleryUrlInput');
             const titleInput = document.getElementById('galleryTitleInput');
             const url = urlInput?.value.trim() || '';
             if (!/^https?:\/\//i.test(url)) { showToast('⚠️', '请填写有效的图片链接'); return; }
-            window.saveGalleryUrl = saveGalleryUrl;
+window.saveGalleryUrl = saveGalleryUrl;
 
+            
             isGalleryUrlSaving = true;
             try {
-                if (urlInput) urlInput.value = '';
+                if (urlInput) urlInput.value = ''; // 立即清空输入框，切断再次提取数据源
                 const nameText = titleInput?.value.trim() || '网络图片';
                 if (titleInput) titleInput.value = '';
 
                 await saveAsset({
-                    id: 'asset_' + Date.now() + '_' + Math.random().toString(36).slice(2),
-                    category: 'gallery',
-                    name: nameText,
-                    fileType: 'img',
+                    id: 'asset_' + Date.now() + '_' + Math.random().toString(36).slice(2), 
+                    category: 'gallery', 
+                    name: nameText, 
+                    fileType: 'img', 
                     url: url,
-                    rawText: url,
-                    subCategory: currentFolderOpened || '',
+                    rawText: url, 
+                    subCategory: currentFolderOpened || '', 
                     createdAt: Date.now()
                 });
 
-                allAssetsCache = null;
-                updateBadges();
-                await renderItems();
+                allAssetsCache = null; 
+                updateBadges(); 
+                await renderItems(); 
                 showToast('🎉', '网络图片链接已保存');
-            } catch (err) {
-                console.error('url gallery save failed', err);
-                showToast('❌', `网络链接保存失败：${err.message || err}`);
+            } catch (err) { 
+                console.error('url gallery save failed', err); 
+                showToast('❌', `网络链接保存失败：${err.message || err}`); 
             } finally {
                 isGalleryUrlSaving = false;
             }
         }
+        async function renderItems() {
+            const assets = await getAllAssets(), keyword = document.getElementById('searchInput').value.toLowerCase().trim(), container = document.getElementById('itemsContainer');
+            container.innerHTML = '';
+
+            container.className = "grid grid-cols-2 gap-2.5";
+
+            renderTagFilterBar();
+
+            const builderPanel = document.getElementById('emojiExportBuilderPanel');
+            const extrasPanel = document.getElementById('extrasBuilderPanel');
+            const galleryPanel = document.getElementById('galleryBuilderPanel');
+            const apikeysPanel = document.getElementById('apikeysBuilderPanel');
+            if (apikeysPanel) apikeysPanel.classList.add('hidden');
+            
+            if (currentTab === 'emojis') { 
+                builderPanel.classList.remove('hidden'); 
+                if (extrasPanel) extrasPanel.classList.add('hidden');
+                if (galleryPanel) galleryPanel.classList.add('hidden');
+            } else if (currentTab === 'regex') {
+                builderPanel.classList.add('hidden'); 
+                if (extrasPanel) extrasPanel.classList.add('hidden'); // 强制隐藏极细折叠手账卡片，保持与文本文档纯净一致
+                if (galleryPanel) galleryPanel.classList.add('hidden');
+            } else if (currentTab === 'gallery') {
+                builderPanel.classList.add('hidden'); 
+                extrasPanel.classList.add('hidden');
+                if (galleryPanel) {
+                    if (currentFolderOpened) {
+                        galleryPanel.classList.add('hidden');
+                    } else {
+                        galleryPanel.classList.remove('hidden');
+                    }
+                }
+            } else { 
+                builderPanel.classList.add('hidden'); 
+                extrasPanel.classList.add('hidden');
+                if (galleryPanel) galleryPanel.classList.add('hidden');
+            }
+
+            const filtered = assets.filter(a => {
+                if (a.category !== categoryStorageKey(currentTab)) return false;
+
+                // Tag Filter
+                if (currentSelectedTagFilter !== 'ALL') {
+                    if (!a.tags || !a.tags.includes(currentSelectedTagFilter)) return false;
+                }
+
+                // Global Multi-field Search Filter
+                if (!keyword) return true;
+
+                const nameMatch = a.name && a.name.toLowerCase().includes(keyword);
+                const tagMatch = a.tags && a.tags.some(t => t.toLowerCase().includes(keyword));
+                const textMatch = a.rawText && a.rawText.toLowerCase().includes(keyword);
+                const personalityMatch = a.personality && a.personality.toLowerCase().includes(keyword);
+
+                // Deep search in worldbook entries or emojis
+                let wbMatch = false;
+                const wb = a.worldbook || a.cardData?.data?.character_book || a.cardData?.character_book;
+                if (wb && wb.entries) {
+                    const entries = Array.isArray(wb.entries) ? wb.entries : Object.values(wb.entries);
+                    wbMatch = entries.some(e => (e.comment && e.comment.toLowerCase().includes(keyword)) || (e.content && e.content.toLowerCase().includes(keyword)) || (Array.isArray(e.keys) && e.keys.some(k => k.toLowerCase().includes(keyword))));
+                }
+
+                return nameMatch || tagMatch || textMatch || personalityMatch || wbMatch;
+            });
+            // document.getElementById('itemCountText').innerText
+            // 如果是在子文件夹内部且为空，允许渲染顶部的面包屑导航与导入按钮
+            if (filtered.length === 0 && !currentFolderOpened && (keyword || currentTab === 'emojis' || currentTab === 'fonts')) { 
+                container.innerHTML = `<div class="col-span-full py-20 text-center text-[#b89b9d]"><i data-lucide="inbox" class="w-10 h-10 mx-auto mb-2 opacity-30"></i><p class="text-xs">暂无资产</p></div>`; 
+                lucide.createIcons(); 
+                return; 
+            }
+
+            
+            // Category/Folder First View (Except fonts)
+            if (['cards', 'worldbooks', 'docs', 'regex', 'gallery', 'links', 'emojis', 'sandbox'].includes(currentTab) || isCustomCategoryTab(currentTab)) {
+                if (!currentFolderOpened && !keyword) {
+                    // Group by subCategory & Strict Isolation by Custom Folders list
+                    const folderCounts = {};
+                    folderCounts['未分类'] = 0;
+                    
+                    // 读取当前大分类专属持久化的自定义文件夹列表
+                    let customFolders = [];
+                    try {
+                        const saved = localStorage.getItem('TAVERN_CUSTOM_FOLDERS_' + currentTab);
+                        if (saved) customFolders = JSON.parse(saved);
+                    } catch(e){}
+                    if (!Array.isArray(customFolders)) customFolders = [];
+
+                    // 【终极兜底】扫描当前分类所有资产，发现有没在白名单里的小分类名，直接静默补建进去！
+                    let needSave = false;
+                    filtered.forEach(a => {
+                        if (a.subCategory && a.subCategory !== '未分类' && a.subCategory.trim() !== '') {
+                            if (!customFolders.includes(a.subCategory)) {
+                                customFolders.push(a.subCategory);
+                                needSave = true;
+                            }
+                        }
+                    });
+                    if (needSave) {
+                        localStorage.setItem('TAVERN_CUSTOM_FOLDERS_' + currentTab, JSON.stringify(customFolders));
+                    }
+
+                    // 1. 初始化当前 Tab 专属的文件夹名字
+                    customFolders.forEach(f => {
+                        if (f) folderCounts[f] = 0;
+                    });
+
+                    // 2. 统计数量：只有当资产的 subCategory 在当前 Tab 的自定义列表内，或者属于'未分类'时才计数
+                    // 彻底防止其他 Tab 的垃圾残留 subCategory 数据跨模块泄露！
+                    filtered.forEach(a => {
+                        const rawSub = a.subCategory || '未分类';
+                        if (rawSub !== '未分类' && customFolders.includes(rawSub)) {
+                            folderCounts[rawSub] = (folderCounts[rawSub] || 0) + 1;
+                        } else {
+                            folderCounts['未分类'] = (folderCounts['未分类'] || 0) + 1;
+                        }
+                    });
+
+                    // Add Create Folder Cards (只保留一个“+ 创建新分类”单卡片)
+                    const addGrid = document.createElement('div');
+                    addGrid.className = "col-span-full mb-3";
+                    addGrid.innerHTML = `
+                        <div onclick="promptCreateFolder()" class="w-full p-3 rounded-[22px] bg-white/80 backdrop-blur-md border border-white/70 flex items-center justify-center gap-2 cursor-pointer hover:border-[#d88c9a] transition active:scale-[0.98] shadow-2xs min-h-[50px]">
+                            <div class="w-7 h-7 rounded-full bg-[#f8eeee] text-[#d88c9a] flex items-center justify-center shadow-2xs">
+                                <i data-lucide="folder-plus" class="w-4 h-4"></i>
+                            </div>
+                            <span class="font-bold text-xs text-[#b86b7a]">+ 创建新分类</span>
+                        </div>
+                    `;
+                    container.appendChild(addGrid);
+
+                    // Render Folder Cards (竖版, 1排2列，支持长按整体删除)
+                    const sortedFolders = Object.keys(folderCounts).sort((a, b) => {
+                        if (a === '未分类') return 1;
+                        if (b === '未分类') return -1;
+                        return 0;
+                    });
+                    sortedFolders.forEach(fName => {
+                        const cnt = folderCounts[fName];
+                        const fCard = document.createElement('div');
+                        fCard.className = "col-span-full w-full px-4 py-3.5 rounded-2xl bg-white/80 backdrop-blur-md border border-white/60 flex items-center justify-between shadow-2xs transition active:scale-[0.99] cursor-pointer relative select-none mb-2.5 min-h-[68px]";
+                        
+                        let folderLongPressTimer = null;
+                        let isFolderLongPress = false;
+
+                        const startFolderPress = (e) => {
+                            if (fName === '未分类') return;
+                            isFolderLongPress = false;
+                            folderLongPressTimer = setTimeout(() => {
+                                isFolderLongPress = true;
+                                if (navigator.vibrate) try { navigator.vibrate(50); } catch(err){}
+                                renameFolder(fName);
+                            }, 600);
+                        };
+
+                        const cancelFolderPress = () => {
+                            if (folderLongPressTimer) clearTimeout(folderLongPressTimer);
+                        };
+
+                        fCard.addEventListener('touchstart', startFolderPress, { passive: true });
+                        fCard.addEventListener('touchend', cancelFolderPress);
+                        fCard.addEventListener('touchmove', cancelFolderPress);
+                        fCard.addEventListener('mousedown', startFolderPress);
+                        fCard.addEventListener('mouseup', cancelFolderPress);
+                        fCard.addEventListener('mouseleave', cancelFolderPress);
+
+                        fCard.onclick = (e) => {
+                            if (isFolderLongPress) {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                return;
+                            }
+                            openFolder(fName);
+                        };
+
+                        const editBtnHtml = fName !== '未分类' 
+                            ? `<button onclick="event.stopPropagation(); renameFolder('${fName}');" title="重命名分类" class="w-5 h-5 rounded-full bg-[#fdf4f5] hover:bg-[#f8eeee] text-[#b86b7a] flex items-center justify-center transition shadow-2xs mr-1">
+                                <i data-lucide="edit-2" class="w-3 h-3"></i>
+                               </button>` 
+                            : '';
+                        const deleteBtnHtml = fName !== '未分类' 
+                            ? `<button onclick="event.stopPropagation(); deleteEntireFolder('${fName}', ${cnt});" title="删除分类文件夹" class="w-5 h-5 rounded-full bg-[#f8eeee] hover:bg-[#f2dadc] text-[#b86b7a] flex items-center justify-center transition shadow-2xs">
+                                <i data-lucide="trash-2" class="w-3 h-3"></i>
+                               </button>` 
+                            : '';
+
+                        fCard.innerHTML = `
+                            <div class="flex items-center gap-3.5 min-w-0 flex-1">
+                                <div class="w-9.5 h-9.5 rounded-2xl bg-[#fdf4f5] text-[#d88c9a] flex items-center justify-center shrink-0 shadow-2xs">
+                                    <i data-lucide="folder" class="w-4.5 h-4.5 text-[#d88c9a]"></i>
+                                </div>
+                                <div class="flex flex-col min-w-0 flex-1 gap-0.5">
+                                    <div class="font-extrabold text-sm text-[#4a3e3d] truncate flex items-center gap-2">
+                                        <span>${fName}</span>
+                                        <span class="text-[10px] px-2 py-0.2 rounded-full bg-[#f8eeee] text-[#b86b7a] font-bold">${cnt} 项</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2 shrink-0">
+                                ${editBtnHtml}${deleteBtnHtml}
+                                <i data-lucide="chevron-right" class="w-4 h-4 text-[#a89294]"></i>
+                            </div>
+                        `;
+                        container.appendChild(fCard);
+                    });
+                    lucide.createIcons();
+                    return;
+                } else if (currentFolderOpened && !keyword) {
+                    // Filter assets inside this folder
+                    let customFoldersForFilter = [];
+                    try {
+                        const saved = localStorage.getItem('TAVERN_CUSTOM_FOLDERS_' + currentTab);
+                        if (saved) customFoldersForFilter = JSON.parse(saved);
+                    } catch(e){}
+                    if (!Array.isArray(customFoldersForFilter)) customFoldersForFilter = [];
+
+                    const folderItems = filtered.filter(a => {
+                        const sub = a.subCategory || '未分类';
+                        if (currentFolderOpened === '未分类') {
+                            return sub === '未分类' || !sub || !customFoldersForFilter.includes(sub);
+                        } else {
+                            return sub === currentFolderOpened;
+                        }
+                    });
+                    filtered.length = 0;
+                    folderItems.forEach(fi => filtered.push(fi));
+
+                    // Breadcrumb Header (单排紧凑模式：左侧返回+文件夹名，右侧直接显示“📥 导入”按钮)
+                    const breadcrumb = document.createElement('div');
+                    breadcrumb.className = "col-span-full flex items-center justify-between bg-white/80 backdrop-blur-md border border-white/60 rounded-2xl p-2.5 mb-2.5 shadow-2xs gap-2";
+                    
+                    let importBtnText = '📥 导入文件';
+                    if (currentTab === 'cards') importBtnText = '📥 导入角色卡';
+                    else if (currentTab === 'worldbooks') importBtnText = '📥 导入世界书';
+                    else if (currentTab === 'docs') importBtnText = '📥 导入文档';
+                    else if (currentTab === 'regex') importBtnText = '📥 导入';
+                    else if (currentTab === 'emojis') importBtnText = '📥 导入表情包';
+                    else if (currentTab === 'sandbox') importBtnText = '📥 导入应用/ZIP';
+
+                    let rightButtonsHtml = `
+                        <button onclick="triggerGlobalDirectImport()" class="px-3 py-1.5 rounded-xl bg-[#fff0f3] border border-[#f2dadc] text-[#e11d48] text-xs font-bold hover:bg-[#ffe4e6] transition flex items-center gap-1 shadow-2xs active:scale-95 shrink-0">
+                            ${importBtnText}
+                        </button>
+                    `;
+if (currentTab === 'docs' || currentTab === 'regex') {
+                        rightButtonsHtml = `
+                            <button onclick="triggerDocPasteModalPrompt()" class="px-2 py-1.5 rounded-xl bg-[#fdf4f5] border border-[#f2dadc] text-[#b86b7a] text-[11px] font-bold hover:bg-[#f8eeee] transition flex items-center gap-0.5 shadow-2xs active:scale-95 shrink-0 whitespace-nowrap">
+                                ✏️ 粘贴草稿
+                            </button>
+                            <button onclick="triggerGlobalDirectImport()" class="px-2 py-1.5 rounded-xl bg-[#fff0f3] border border-[#f2dadc] text-[#e11d48] text-[11px] font-bold hover:bg-[#ffe4e6] transition flex items-center gap-0.5 shadow-2xs active:scale-95 shrink-0 whitespace-nowrap">
+                                ${importBtnText}
+                            </button>
+                        `;
+                    } else if (currentTab === 'gallery') {
+                        rightButtonsHtml = `
+                            <button onclick="triggerGalleryLinkInputPrompt()" class="px-2 py-1.5 rounded-xl bg-[#fdf4f5] border border-[#f2dadc] text-[#b86b7a] text-[11px] font-bold hover:bg-[#f8eeee] transition flex items-center gap-0.5 shadow-2xs active:scale-95 shrink-0 whitespace-nowrap">
+                                🔗 粘贴直链
+                            </button>
+                            <button onclick="triggerGlobalDirectImport()" class="px-2 py-1.5 rounded-xl bg-[#fff0f3] border border-[#f2dadc] text-[#e11d48] text-[11px] font-bold hover:bg-[#ffe4e6] transition flex items-center gap-0.5 shadow-2xs active:scale-95 shrink-0 whitespace-nowrap">
+                                📥 上传图片
+                            </button>
+                        `;
+                    }
+
+                    breadcrumb.innerHTML = `
+                        <div class="flex items-center gap-1 min-w-0 shrink">
+                            <button onclick="exitFolderView()" class="px-2 py-1 rounded-xl bg-[#d88c9a] text-white text-[11px] font-bold hover:bg-[#c97b8b] transition flex items-center gap-0.5 shrink-0 shadow-2xs active:scale-95">
+                                <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i> 返回
+                            </button>
+                            <span class="text-[11px] font-extrabold text-[#4a3e3d] truncate hidden sm:inline-block">📂 ${currentFolderOpened}</span>
+                        </div>
+                        <div class="flex items-center gap-1.5 shrink-0 ml-auto">
+                            ${rightButtonsHtml}
+                            <button onclick="promptBatchMoveToFolder()" class="text-[10px] text-[#b86b7a] hover:underline font-semibold shrink-0 ml-0.5 whitespace-nowrap">+移动</button>
+                        </div>
+                    `;
+                    container.appendChild(breadcrumb);
+                }
+            }
+
+            filtered.forEach(item => {
+                const card = document.createElement('div');
+                const isSelected = selectedAssetIds.has(item.id);
+                
+                card.setAttribute('data-asset-id', item.id);
+                card.className = `ui-card p-3 flex flex-col justify-between cursor-pointer hover:border-[#d88c9a] transition active:scale-[0.99] relative group ${isSelected ? 'ring-2 ring-[#d88c9a] bg-[#fdf6f7]' : ''}`;
+                
+                // 绑定长按事件
+                bindLongPressEvent(card, item.id);
+
+                card.onclick = (e) => {
+                    if (isMultiSelectMode) {
+                        toggleSelectAsset(item.id, e);
+                    } else if (currentTab === 'links' || item.category === 'links') {
+                        openLinkDetailModal(item);
+                    } else {
+                        openDetailView(item);
+                    }
+                };
+
+                if (currentTab === 'links') {
+                    const linkUrl = item.url || item.rawText || '#';
+                    card.className = "ui-card col-span-full w-full p-4 flex flex-col gap-3 hover:border-[#60a5fa] transition relative group bg-white/75 rounded-2xl border border-white/80 shadow-sm backdrop-blur-md";
+                    card.innerHTML = `
+                        <div class="flex items-center justify-between gap-3">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <div class="w-10 h-10 rounded-2xl bg-[#e0f2fe]/80 border border-[#93c5fd] flex items-center justify-center shrink-0">
+                                    <i data-lucide="link" class="w-4 h-4 text-[#2563eb]"></i>
+                                </div>
+                                <div class="truncate">
+                                    <h3 class="font-bold text-sm text-[#172554] truncate">${item.name}</h3>
+                                    <span class="text-[11px] text-[#64748b] font-mono block truncate mt-0.5">${linkUrl}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-wrap items-center gap-2 pt-1 border-t border-[#dbeafe]">
+                            <button onclick="openLinkInDefaultBrowser('${linkUrl}')" class="flex-1 min-w-[150px] py-2 rounded-xl bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-bold text-[11px] transition shadow-xs flex items-center justify-center gap-1">
+                                🚀 默认浏览器打开
+                            </button>
+                            <button onclick="navigator.clipboard.writeText('${linkUrl}'); showToast('📋', '链接已复制！');" class="px-3 py-2 rounded-xl bg-[#eff6ff] text-[#475569] hover:bg-[#e2e8f0] text-[11px] font-bold transition">
+                                📋 复制
+                            </button>
+                            <button onclick="promptManageAssetTags('${item.id}', event)" class="px-3 py-2 rounded-xl bg-[#fdf4f5] text-[#b86b7a] hover:bg-[#f8eeee] text-[11px] font-bold transition flex items-center gap-1">
+                                🏷️ 标签${item.tags && item.tags.length > 0 ? ` (${item.tags.length})` : ''}
+                            </button>
+                            <button onclick="deleteSingleAsset('${item.id}', event)" class="px-3 py-2 rounded-xl bg-[#fff1f2] text-[#ef4444] hover:bg-[#fee2e2] text-[11px] font-bold transition">
+                                🗑️
+                            </button>
+                        </div>
+                    `;
+                } else if (currentTab === 'gallery') {
+                    const imgUrl = getAssetImageUrl(item);
+                    card.className = `ui-card p-2 flex flex-col justify-between cursor-pointer hover:border-[#d88c9a] transition active:scale-[0.99] relative group ${isSelected ? 'ring-2 ring-[#d88c9a] bg-[#fdf6f7]' : ''}`;
+                    card.innerHTML = `
+                        <div class="aspect-square rounded-lg overflow-hidden bg-[#fdf4f5] mb-1 border border-[#f5e1e3] flex items-center justify-center p-0.5 relative">
+                            <img src="${imgUrl}" class="w-full h-full object-cover rounded-lg" onerror="this.src='https://placehold.co/300x400/fdf4f5/d88c9a?text=图片加载失败'">
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-xs text-[#4a3e3d] text-center truncate px-0.5">${item.name}</h3>
+                            ${item.tags && item.tags.length > 0 ? `
+                                <div class="flex items-center justify-center gap-1 flex-wrap pt-1">
+                                    ${item.tags.map(t => `
+                                        <span ontouchstart="handleGalleryTagTouchStart('${t}', '${item.id}', event)" ontouchend="handleGalleryTagTouchEnd('${t}', '${item.id}', event)" onclick="handleGalleryTagClick('${t}', '${item.id}', event)" class="text-[10px] px-2 py-0.5 rounded-full bg-[#f8eeee] text-[#b86b7a] font-medium border border-[#f2dadc] active:scale-95 cursor-pointer select-none" title="长按复制，点击编辑/删除">
+                                            🏷️ ${t}
+                                        </span>
+                                    `).join('')}
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                } else if (currentTab === 'sandbox' || item.category === 'sandbox') {
+                    const isZip = item.fileType === 'zip';
+                    card.className = `ui-card p-3 flex flex-col justify-between cursor-pointer hover:border-[#0ea5e9] transition active:scale-[0.99] relative group bg-white/80 rounded-2xl border border-[#e0f2fe] shadow-2xs ${isSelected ? 'ring-2 ring-[#0ea5e9] bg-[#f0f9ff]' : ''}`;
+                    card.innerHTML = `
+                        <div>
+                            <div class="h-24 rounded-xl bg-[#f0f9ff] mb-2 border border-[#bae6fd] flex flex-col items-center justify-center overflow-hidden p-2 text-center">
+                                <i data-lucide="${isZip ? 'package' : 'globe'}" class="w-8 h-8 text-[#0284c7] mb-1"></i>
+                                <span class="text-[10px] font-mono font-bold text-[#0369a1] px-2 py-0.5 rounded-full bg-white/90 shadow-2xs">${(item.fileType || 'APP').toUpperCase()}</span>
+                            </div>
+                            <h3 class="font-bold text-sm text-[#0f172a] text-center truncate py-0.5">${item.name}</h3>
+                            <p class="text-[10px] text-[#0284c7] font-semibold text-center">${isZip ? 'ZIP 小手机/微应用' : 'HTML 沉浸网页'}</p>
+                        </div>
+                        <div class="mt-2 pt-2 border-t border-[#e0f2fe] flex items-center justify-between gap-1">
+                            <button onclick="event.stopPropagation(); runSandboxItem(item);" class="flex-1 py-1.5 rounded-xl bg-[#0284c7] hover:bg-[#0369a1] text-white font-bold text-xs transition shadow-2xs flex items-center justify-center gap-1 active:scale-95">
+                                <i data-lucide="play" class="w-3 h-3"></i> 沉浸运行
+                            </button>
+                        </div>
+                    `;
+                } else if (currentTab === 'emojis') {
+                    const count = item.emojiList ? item.emojiList.length : 0;
+                    const previewCover = item.emojiList && item.emojiList[0] ? item.emojiList[0].url : '';
+                    const isChecked = selectedEmojiPackIdsInList.has(item.id);
+
+                    card.innerHTML = `
+                        <div class="absolute top-2 left-2 z-10">
+                            <input type="checkbox" ${isChecked ? 'checked' : ''} onclick="toggleEmojiPackInListSelection('${item.id}', event)" class="w-4 h-4 text-[#d88c9a] rounded border-[#f2e3e3] cursor-pointer">
+                        </div>
+                        <div>
+                            <div class="h-28 rounded-xl bg-[#fdf4f5] mb-2 border border-[#f5e1e3] flex items-center justify-center overflow-hidden p-1">
+                                ${previewCover ? `<img src="${previewCover}" class="max-w-full max-h-full object-contain" onerror="this.src='https://placehold.co/150x150/fdf4f5/d88c9a?text=表情合集'">` : `<i data-lucide="smile" class="w-8 h-8 text-[#d88c9a]"></i>`}
+                            </div>
+                            <h3 class="font-bold text-sm text-[#4a3e3d] text-center truncate py-0.5">${item.name}</h3>
+                            <p class="text-[10px] text-[#b86b7a] font-semibold text-center">包含 ${count} 个表情图片</p>
+                        </div>
+                    `;
+                } else {
+                    let coverHtml = '';
+                    if (item.rawBuffer && item.fileType === 'png') {
+                        const blob = new Blob([item.rawBuffer], { type: 'image/png' }), url = URL.createObjectURL(blob);
+                        coverHtml = `<div class="aspect-square rounded-lg overflow-hidden bg-slate-100 mb-1 border border-slate-100"><img src="${url}" class="w-full h-full object-cover"></div>`;
+                    } else {
+                        coverHtml = `<div class="h-20 rounded-lg bg-[#fdf4f5] mb-1 flex items-center justify-center text-[#d88c9a]"><i data-lucide="${item.fileType === 'docx' || item.fileType === 'txt' ? 'file-text' : 'user'}" class="w-6 h-6"></i></div>`;
+                    }
+                    card.innerHTML = `<div>${coverHtml}<h3 class="font-bold text-sm text-[#4a3e3d] text-center truncate py-1">${item.name}</h3>${item.tags && item.tags.length > 0 ? `<div class="flex items-center justify-center gap-1 flex-wrap pt-0.5">${item.tags.slice(0, 3).map(t => `<span class="text-[9px] px-1.5 py-0.2 rounded bg-[#f8eeee] text-[#b86b7a] font-medium">🏷️ ${t}</span>`).join('')}${item.tags.length > 3 ? `<span class="text-[9px] text-[#a38b8d]">+${item.tags.length - 3}</span>` : ''}</div>` : ''}</div>`;
+                }
+                // 如果处于批量多选模式，在卡片右上角统一注入精致勾选红点圆框
+                if (isMultiSelectMode) {
+                    const checkBadge = document.createElement('div');
+                    checkBadge.className = `selection-badge absolute top-2 right-2 z-30 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shadow-md transition ${isSelected ? 'bg-[#d88c9a] text-white scale-110' : 'bg-white/90 border border-gray-300 text-transparent'}`;
+                    checkBadge.innerHTML = '✓';
+                    checkBadge.onclick = (e) => toggleSelectAsset(item.id, e);
+                    card.appendChild(checkBadge);
+                }
+
+                container.appendChild(card);
+            });
+
+            lucide.createIcons();
+        }
+
         
-        
+        async function renameCurrentItem() {
+            if (!currentItem) return;
+            const newName = prompt('请输入新名称：', currentItem.name);
+            if (newName && newName.trim() && newName.trim() !== currentItem.name) {
+                currentItem.name = newName.trim();
+                await saveAsset(currentItem);
+                document.getElementById('pageTitle').innerText = currentItem.name;
+                updateBadges();
+                renderItems();
+                showToast('✏️', `已重命名为 “${currentItem.name}”`);
+            }
+        }
 
         function openDetailView(item) {
             currentItem = item; document.getElementById('pageTitle').innerText = item.name;
