@@ -1600,13 +1600,15 @@ if (currentTab === 'docs' || currentTab === 'regex') {
                         </div>
                         <div>
                             <h3 class="font-bold text-xs text-[#4a3e3d] text-center truncate px-0.5">${item.name}</h3>
-                            <div class="flex items-center justify-center gap-1 flex-wrap pt-1">
-                                ${item.tags && item.tags.length > 0 ? item.tags.map(t => `
-                                    <span ontouchstart="handleGalleryTagTouchStart('${t}', '${item.id}', event)" ontouchend="handleGalleryTagTouchEnd('${t}', '${item.id}', event)" onclick="handleGalleryTagClick('${t}', '${item.id}', event)" class="text-[10px] px-2 py-0.5 rounded-full bg-[#f8eeee] text-[#b86b7a] font-medium border border-[#f2dadc] active:scale-95 cursor-pointer select-none" title="长按复制，点击编辑/删除">
-                                        🏷️ ${t}
-                                    </span>
-                                `).join('') : `<button type="button" onclick="promptManageAssetTags('${item.id}', event)" class="text-[9px] px-2 py-0.5 rounded-full bg-[#faf5f5] text-[#b86b7a] border border-dashed border-[#f2dadc] hover:bg-[#f8eeee] transition">+加标签</button>`}
-                            </div>
+                            ${item.tags && item.tags.length > 0 ? `
+                                <div class="flex items-center justify-center gap-1 flex-wrap pt-1">
+                                    ${item.tags.map(t => `
+                                        <span ontouchstart="handleGalleryTagTouchStart('${t}', '${item.id}', event)" ontouchend="handleGalleryTagTouchEnd('${t}', '${item.id}', event)" onclick="handleGalleryTagClick('${t}', '${item.id}', event)" class="text-[10px] px-2 py-0.5 rounded-full bg-[#f8eeee] text-[#b86b7a] font-medium border border-[#f2dadc] active:scale-95 cursor-pointer select-none" title="长按复制，点击编辑/删除">
+                                            🏷️ ${t}
+                                        </span>
+                                    `).join('')}
+                                </div>
+                            ` : ''}
                         </div>
                     `;
                 } else if (currentTab === 'sandbox' || item.category === 'sandbox') {
