@@ -97,6 +97,7 @@ function switchTab(tab, e) {
     const themePanel = document.getElementById('themeBuilderPanel');
     const emojiPanel = document.getElementById('emojiExportBuilderPanel');
     const linksPanel = document.getElementById('linksBuilderPanel');
+    const emojiNamerPanel = document.getElementById('emojiNamerBuilderPanel');
     const itemsGrid = document.getElementById('itemsContainer');
     const searchBar = document.getElementById('searchInput')?.parentElement?.parentElement;
     
@@ -106,6 +107,7 @@ function switchTab(tab, e) {
     if (themePanel) themePanel.classList.add('hidden');
     if (emojiPanel) emojiPanel.classList.add('hidden');
     if (linksPanel) linksPanel.classList.add('hidden');
+    if (emojiNamerPanel) emojiNamerPanel.classList.add('hidden');
     if (itemsGrid) itemsGrid.classList.remove('hidden');
     if (searchBar) searchBar.classList.remove('hidden');
 
@@ -131,6 +133,10 @@ function switchTab(tab, e) {
     } else if (tab === 'themes') {
         if (themePanel) themePanel.classList.remove('hidden');
         renderItems();
+    } else if (tab === 'emoji_namer') {
+        if (emojiNamerPanel) emojiNamerPanel.classList.remove('hidden');
+        if (itemsGrid) itemsGrid.classList.add('hidden');
+        if (searchBar) searchBar.classList.add('hidden');
     } else if (tab === 'links') {
         if (linksPanel) { linksPanel.classList.remove('hidden'); populateLinkCategorySelect(); }
         renderItems();
@@ -3414,3 +3420,215 @@ async function renameFolder(oldName) {
 }
 window.renameFolder = renameFolder;
 
+
+
+/* ================= 表情包批量命名逻辑 (Emoji Namer) ================= */
+let namerList = [];
+let namerIsRevealed = false;
+
+function namerShowToast(msg) {
+    if (typeof showToast === 'function') {
+        showToast('🏷️', msg);
+    } else {
+        alert(msg);
+    }
+}
+
+function namerExtractUrls(text) {
+    const urlRegex = /(https?:\/\/[^\s
+	]+)/gi;
+    const matches = text.match(urlRegex) || [];
+    const set = new Set();
+    const res = [];
+    for (let u of matches) {
+        u = u.replace(/[),;。，]$/, '');
+        if (!set.has(u)) { set.add(u); res.push(u); }
+    }
+    return res;
+}
+
+window.namerProcessInput = function(isReplace) {
+    const inputEl = document.getElementById('namerRawInput');
+    if (!inputEl) return;
+    const text = inputEl.value;
+    const urls = namerExtractUrls(text);
+    if (urls.length === 0) { namerShowToast('未找到有效图片直链'); return; }
+
+    const newItems = urls.map(url => ({
+        id: Date.now() + Math.random().toString(36).substr(2, 6),
+        url: url,
+        name: '',
+        checked: true
+    }));
+
+    if (isReplace) {
+        namerList = newItems;
+    } else {
+        const existUrls = new Set(namerList.map(i => i.url));
+        const filtered = newItems.filter(i => !existUrls.has(i.url));
+        namerList = [...namerList, ...filtered];
+    }
+
+    inputEl.value = '';
+    namerIsRevealed = false;
+    namerUpdateRevealBtn();
+    namerRenderList();
+    namerShowToast(`成功导入 ${urls.length} 个表情！`);
+};
+
+window.namerRenderList = function() {
+    const container = document.getElementById('namerItemsList');
+    const countEl = document.getElementById('namerCountSpan');
+    if (!container) return;
+    if (countEl) countEl.innerText = namerList.length;
+    namerUpdateProgress();
+
+    if (namerList.length === 0) {
+        container.innerHTML = '<div class="text-center py-8 text-xs text-[#828a8f]">暂无表情，请在上方粘贴链接后追加</div>';
+        return;
+    }
+
+    const sepInput = document.getElementById('namerSeparator');
+    const sep = sepInput ? sepInput.value : ' - ';
+
+    container.innerHTML = namerList.map((item, index) => {
+        const displayName = item.name.trim() || `表情${index + 1}`;
+        const combined = `${displayName}${sep}${item.url}`;
+        return `
+            <div class="bg-white border border-[#e5e1d8] rounded-xl p-2.5 shadow-2xs space-y-1.5" id="namer-card-${item.id}">
+                <div class="flex items-center gap-2.5">
+                    <input type="checkbox" class="w-4 h-4 accent-[#5b7a68] rounded cursor-pointer" ${item.checked ? 'checked' : ''} onchange="namerToggleItem('${item.id}', this.checked)">
+                    <div class="w-12 h-12 rounded-lg overflow-hidden bg-[#faf9f6] border border-[#e5e1d8] shrink-0 flex items-center justify-center">
+                        <img src="${item.url}" referrerpolicy="no-referrer" loading="lazy" class="w-full h-full object-cover" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                        <div class="text-[9px] text-[#999] text-center hidden">加载失败</div>
+                    </div>
+                    <div class="flex-1">
+                        <input type="text" class="w-full bg-[#faf9f6] border border-[#e5e1d8] rounded-lg px-2.5 py-1.5 text-xs text-[#33383b] outline-none focus:border-[#5b7a68] focus:bg-white transition" value="${item.name}" placeholder="给表情取名..." oninput="namerHandleNameChange('${item.id}', this.value)">
+                    </div>
+                </div>
+                <div class="text-[11px] text-[#555e58] bg-[#edeae1] px-2.5 py-1 rounded font-mono break-all leading-tight ${namerIsRevealed ? 'block' : 'hidden'}" id="namer-url-${item.id}">${combined}</div>
+            </div>
+        `;
+    }).join('');
+};
+
+window.namerHandleNameChange = function(id, val) {
+    const target = namerList.find(i => i.id === id);
+    if (target) {
+        target.name = val;
+        namerUpdateProgress();
+        if (namerIsRevealed) {
+            const sepInput = document.getElementById('namerSeparator');
+            const sep = sepInput ? sepInput.value : ' - ';
+            const el = document.getElementById(`namer-url-${id}`);
+            if (el) el.innerText = `${val.trim() || '未命名'}${sep}${target.url}`;
+        }
+    }
+};
+
+window.namerToggleItem = function(id, checked) {
+    const target = namerList.find(i => i.id === id);
+    if (target) target.checked = checked;
+};
+
+window.namerToggleSelectAll = function() {
+    if (namerList.length === 0) return;
+    const allChecked = namerList.every(i => i.checked);
+    namerList.forEach(i => i.checked = !allChecked);
+    namerRenderList();
+    namerShowToast(!allChecked ? '已全选' : '已取消全选');
+};
+
+window.namerToggleRevealUrls = function() {
+    if (namerList.length === 0) return namerShowToast('列表为空');
+    namerIsRevealed = !namerIsRevealed;
+    namerUpdateRevealBtn();
+    namerRenderList();
+};
+
+function namerUpdateRevealBtn() {
+    const btn = document.getElementById('namerRevealBtn');
+    if (!btn) return;
+    if (namerIsRevealed) {
+        btn.innerText = '隐藏链接';
+        btn.classList.add('bg-[#e5e1d8]');
+    } else {
+        btn.innerText = '显示链接';
+        btn.classList.remove('bg-[#e5e1d8]');
+    }
+}
+
+window.namerUpdateVisibleUrls = function() {
+    if (namerIsRevealed) namerRenderList();
+};
+
+function namerUpdateProgress() {
+    const total = namerList.length;
+    const namedCount = namerList.filter(i => i.name && i.name.trim().length > 0).length;
+    const tag = document.getElementById('namerProgressTag');
+    const bar = document.getElementById('namerProgressBar');
+    if (tag) tag.innerText = `${namedCount} / ${total} 已命名`;
+    const pct = total === 0 ? 0 : Math.round((namedCount / total) * 100);
+    if (bar) bar.style.width = `${pct}%`;
+}
+
+window.namerClearList = function() {
+    if (namerList.length === 0) return;
+    if (confirm('确认清空表情列表吗？')) {
+        namerList = [];
+        namerIsRevealed = false;
+        namerUpdateRevealBtn();
+        namerRenderList();
+        namerShowToast('已清空列表');
+    }
+};
+
+window.namerHandleFileImport = function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        const inputEl = document.getElementById('namerRawInput');
+        if (inputEl) {
+            inputEl.value = event.target.result;
+            namerProcessInput(false);
+        }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+};
+
+function namerGenerateExportData() {
+    const sepInput = document.getElementById('namerSeparator');
+    const sep = sepInput ? sepInput.value : ' - ';
+    const selected = namerList.filter(i => i.checked);
+    if (selected.length === 0) return null;
+    return selected.map((i, idx) => {
+        const n = i.name.trim() || `表情${idx + 1}`;
+        return `${n}${sep}${i.url}`;
+    }).join('
+');
+}
+
+window.namerCopyExportText = function() {
+    const text = namerGenerateExportData();
+    if (!text) return namerShowToast('请先勾选表情');
+    navigator.clipboard.writeText(text).then(() => {
+        namerShowToast('已复制全部导出内容！');
+    }).catch(() => {
+        namerShowToast('复制失败，请尝试下载 TXT');
+    });
+};
+
+window.namerExportTxtFile = function() {
+    const text = namerGenerateExportData();
+    if (!text) return namerShowToast('请先勾选表情');
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    const dateStr = new Date().toISOString().slice(0, 10);
+    a.download = `表情包批量命名_${dateStr}.txt`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    namerShowToast('TXT 文件已开始下载');
+};
