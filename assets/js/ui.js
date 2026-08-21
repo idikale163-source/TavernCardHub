@@ -336,11 +336,14 @@ async function processFile(file, targetCategory = currentTab) {
             if (item.cover instanceof Blob || item.cover instanceof File) {
                 return URL.createObjectURL(item.cover);
             }
+            if (item.cardData && item.cardData.cover_base64) {
+                return item.cardData.cover_base64;
+            }
             if (item.rawBuffer instanceof ArrayBuffer) {
                 const blob = new Blob([item.rawBuffer], { type: item.fileType || 'image/png' });
                 return URL.createObjectURL(blob);
             }
-            if (item.url) return item.url;
+            if (item.url && item.category !== 'links') return item.url;
             return item.cover || item.rawText || '';
         }
 
@@ -515,6 +518,18 @@ async function processFile(file, targetCategory = currentTab) {
                 }
                 if (asset.url) {
                     cardData.url = asset.url;
+                }
+                // 【图库图片同步修复】如果 cover 是 Blob/File，转换成 Base64 data URL 嵌入 cardData
+                // 不动 rawBuffer 原逻辑，仅仅是补救 cover Blob 之前不同步云端的 bug
+                if (asset.cover instanceof Blob && !cardData.cover_base64) {
+                    try {
+                        cardData.cover_base64 = await new Promise((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onload = () => resolve(reader.result);
+                            reader.onerror = reject;
+                            reader.readAsDataURL(asset.cover);
+                        });
+                    } catch(e) { console.warn('cover base64 convert failed', e); }
                 }
                 const { error } = await supabaseClient.from('tavern_assets').upsert({
                     id: asset.id,
@@ -3765,3 +3780,171 @@ window.renderGalleryDetailTags = function() {
         </span>
     `).join('');
 };
+
+
+/* ================= ZIP 导出与导入 ================= */
+async function exportAssetsAsZip() {
+    try {
+        if (typeof JSZip === 'undefined') {
+            showToast('⚠️', 'JSZip 库未加载，请检查网络');
+            return;
+        }
+        showToast('⌛', '正在打包所有资产...');
+        const assets = await getAllAssets();
+        if (!assets.length) {
+            showToast('⚠️', '没有资产可导出');
+            return;
+        }
+        const zip = new JSZip();
+        const manifest = [];
+        for (let i = 0; i < assets.length; i++) {
+            const asset = assets[i];
+            const entry = {
+                id: asset.id,
+                category: asset.category,
+                name: asset.name,
+                fileType: asset.fileType,
+                subCategory: asset.subCategory || '',
+                rawText: asset.rawText || '',
+                url: asset.url || '',
+                tags: asset.tags || [],
+                emojiList: asset.emojiList || null,
+                cardData: asset.cardData || null,
+                createdAt: asset.createdAt
+            };
+            // 如果有 cover Blob，转换成 base64 存入 zip
+            if (asset.cover instanceof Blob) {
+                try {
+                    const dataUrl = await new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = () => resolve(reader.result);
+                        reader.onerror = reject;
+                        reader.readAsDataURL(asset.cover);
+                    });
+                    entry.cover_base64 = dataUrl;
+                } catch(e) {}
+            }
+            // 如果有 rawBuffer (ArrayBuffer)，转 base64
+            if (asset.rawBuffer instanceof ArrayBuffer) {
+                try {
+                    const bytes = new Uint8Array(asset.rawBuffer);
+                    let binary = '';
+                    for (let j = 0; j < bytes.byteLength; j++) binary += String.fromCharCode(bytes[j]);
+                    entry.raw_buffer_base64 = btoa(binary);
+                } catch(e) {}
+            }
+            const safeName = (asset.name || 'untitled').replace(/[^a-zA-Z0-9_一-鿿]/g, '_').substring(0, 50);
+            zip.file(`assets/${i}_${safeName}.json`, JSON.stringify(entry));
+            manifest.push({ index: i, id: asset.id, name: asset.name, category: asset.category });
+        }
+        // 保存自定义文件夹配置
+        const folderConfig = {};
+        ['cards', 'gallery', 'links', 'themes', 'fonts', 'apikeys', 'custom'].forEach(cat => {
+            const stored = localStorage.getItem('TAVERN_CUSTOM_FOLDERS_' + cat);
+            if (stored) folderConfig[cat] = JSON.parse(stored);
+        });
+        zip.file('_manifest.json', JSON.stringify({
+            version: 1,
+            exportedAt: Date.now(),
+            count: assets.length,
+            manifest: manifest,
+            customFolders: folderConfig
+        }, null, 2));
+        const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+        const ts = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
+        const filename = `ResourceHub_Backup_${ts}.zip`;
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        showToast('🎉', `已导出 ${assets.length} 个资产 (${(blob.size / 1024 / 1024).toFixed(1)}MB)`);
+    } catch (err) {
+        console.error('ZIP export failed', err);
+        showToast('❌', `导出失败: ${err.message || err}`);
+    }
+}
+
+async function importAssetsFromZip() {
+    const input = document.getElementById('zipImportInput');
+    if (!input) {
+        showToast('⚠️', '导入输入框不存在');
+        return;
+    }
+    input.onchange = async function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        input.value = '';
+        try {
+            if (typeof JSZip === 'undefined') {
+                showToast('⚠️', 'JSZip 库未加载');
+                return;
+            }
+            showToast('⌛', '正在解压导入...');
+            const zip = await JSZip.loadAsync(file);
+            const manifestFile = zip.file('_manifest.json');
+            if (!manifestFile) {
+                showToast('❌', '不是有效的 ResourceHub 备份文件');
+                return;
+            }
+            const manifestData = JSON.parse(await manifestFile.async('string'));
+            // 恢复自定义文件夹
+            if (manifestData.customFolders) {
+                for (let cat in manifestData.customFolders) {
+                    localStorage.setItem('TAVERN_CUSTOM_FOLDERS_' + cat, JSON.stringify(manifestData.customFolders[cat]));
+                }
+            }
+            let imported = 0;
+            const assetFiles = Object.keys(zip.files).filter(f => f.startsWith('assets/') && f.endsWith('.json'));
+            for (let i = 0; i < assetFiles.length; i++) {
+                const entry = JSON.parse(await zip.files[assetFiles[i]].async('string'));
+                const asset = {
+                    id: entry.id,
+                    category: entry.category,
+                    name: entry.name,
+                    fileType: entry.fileType || 'image/png',
+                    subCategory: entry.subCategory || '',
+                    rawText: entry.rawText || null,
+                    url: entry.url || '',
+                    tags: entry.tags || [],
+                    emojiList: entry.emojiList || null,
+                    cardData: entry.cardData || null,
+                    createdAt: entry.createdAt || Date.now()
+                };
+                // 从 base64 还原 cover Blob
+                if (entry.cover_base64) {
+                    try {
+                        const arr = entry.cover_base64.split(',');
+                        const mime = arr[0].match(/data:(.*?);base64/)[1];
+                        const bstr = atob(arr[1]);
+                        let nbytes = new Uint8Array(bstr.length);
+                        for (let j = 0; j < bstr.length; j++) nbytes[j] = bstr.charCodeAt(j);
+                        asset.cover = new Blob([nbytes], { type: mime });
+                    } catch(e) { console.warn('cover restore failed', e); }
+                }
+                // 从 base64 还原 rawBuffer
+                if (entry.raw_buffer_base64) {
+                    try {
+                        const bstr = atob(entry.raw_buffer_base64);
+                        let nbytes = new Uint8Array(bstr.length);
+                        for (let j = 0; j < bstr.length; j++) nbytes[j] = bstr.charCodeAt(j);
+                        asset.rawBuffer = nbytes.buffer;
+                    } catch(e) { console.warn('rawBuffer restore failed', e); }
+                }
+                await saveAsset(asset);
+                imported++;
+                if (imported % 20 === 0) {
+                    showToast('⌛', `已导入 ${imported}/${assetFiles.length}...`);
+                }
+            }
+            allAssetsCache = null;
+            updateBadges();
+            await renderItems();
+            showToast('🎉', `成功导入 ${imported} 个资产`);
+        } catch (err) {
+            console.error('ZIP import failed', err);
+            showToast('❌', `导入失败: ${err.message || err}`);
+        }
+    };
+    input.click();
+}
