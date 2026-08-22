@@ -6,7 +6,23 @@ function toggleCloudConfigCollapse() {
             else { body.classList.remove('hidden'); chevron.classList.add('rotate-180'); }
         }
 
-        const SQL_CODE = `CREATE TABLE IF NOT EXISTS tavern_assets (id TEXT PRIMARY KEY, category TEXT, name TEXT, file_type TEXT, card_data JSONB, raw_text TEXT, raw_buffer_base64 TEXT, created_at BIGINT); ALTER TABLE tavern_assets ENABLE ROW LEVEL SECURITY; CREATE POLICY "Public Access" ON tavern_assets FOR ALL USING (true) WITH CHECK (true);`;
+        const SQL_CODE = `
+-- 1. 资产元数据表 (纯 JSON，不存大图 Base64，永远不超限)
+CREATE TABLE IF NOT EXISTS tavern_assets (
+    id TEXT PRIMARY KEY,
+    category TEXT,
+    name TEXT,
+    file_type TEXT,
+    card_data JSONB,
+    raw_text TEXT,
+    created_at BIGINT
+);
+ALTER TABLE tavern_assets ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public Access" ON tavern_assets FOR ALL USING (true) WITH CHECK (true);
+
+-- 2. Storage Bucket 存储桶说明:
+-- 请在 Supabase 控制台 -> Storage -> 点击 New Bucket -> 命名为 "asset-covers" -> 勾选 Public bucket！
+`;
 
         function copySqlCode() { navigator.clipboard.writeText(SQL_CODE); showToast('📋', '建表 SQL 已复制到剪贴板！'); }
 
