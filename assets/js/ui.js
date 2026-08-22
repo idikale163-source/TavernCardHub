@@ -336,6 +336,9 @@ async function processFile(file, targetCategory = currentTab) {
             if (item.cover instanceof Blob || item.cover instanceof File) {
                 return URL.createObjectURL(item.cover);
             }
+            if (item.cardData && item.cardData.cover_url) {
+                return item.cardData.cover_url;
+            }
             if (item.cardData && item.cardData.cover_base64) {
                 return item.cardData.cover_base64;
             }
@@ -391,39 +394,37 @@ async function processFile(file, targetCategory = currentTab) {
         // FORCE OVERWRITE BACKUP TO CLOUD
         async function forceOverwriteBackupCloud() {
             if (!supabaseClient) { alert('未配置 Supabase 云端，无法全量覆盖！'); return; }
-            if (!confirm('⚠️ 警告：这会清空 Supabase 云端现有的所有数据，并完全用当前本地 IndexedDB 的数据全量覆盖！确定执行吗？')) return;
-
+            if (!confirm('⚠️ 警告：这会清空 Supabase 云端现有的所有数据与图片，并完全用当前本地数据全量覆盖！确定执行吗？')) return;
             document.getElementById('cloudStatusBadge').innerText = '覆盖清空中...';
             showToast('💥', '正在清空 Supabase 远程旧数据...');
 
             try {
-                // Delete all rows
+                // 清空数据库
                 const { error: delError } = await supabaseClient.from('tavern_assets').delete().neq('id', '___NON_EXISTENT_ID___');
                 if (delError) { showToast('❌', `清空云端失败: ${delError.message}`); return; }
 
                 const localAssets = await getAllAssets();
-                showToast('📤', `旧数据已清空，正在全量推送 ${localAssets.length} 项本地资产...`);
-
+                showToast('📤', `旧数据已清空，正在全量推送 ${localAssets.length} 项本地资产 (图片直传 Storage)...`);
                 let count = 0;
                 for (let asset of localAssets) {
                     await syncAssetToCloudSilent(asset);
                     count++;
+                    if (count % 10 === 0) {
+                        showToast('⌛', `已全量同步 ${count}/${localAssets.length}...`);
+                    }
                 }
                 await syncApiKeysToCloudSilent();
                 await syncCustomFoldersToCloudSilent();
                 document.getElementById('cloudStatusBadge').innerText = '已覆盖';
-                showToast('🎉', `强行全量覆盖备份完成！已将 ${count} 项资产 + API 密钥 + 文件夹名册覆盖推送到云端！`);
+                showToast('🎉', `强行全量覆盖备份完成！已将 ${count} 项资产 + API 密钥 + 文件夹名册推送至云端！`);
             } catch(e) {
                 showToast('❌', '覆盖同步失败，请检查网络');
             }
             setTimeout(() => document.getElementById('cloudStatusBadge').innerText = '已连接', 3000);
         }
-
-        // FORCE OVERWRITE RESTORE TO LOCAL
         async function forceOverwriteRestoreLocal() {
             if (!supabaseClient) { alert('未配置 Supabase 云端，无法恢复！'); return; }
             if (!confirm('⚠️ 极度危险：这会彻底清空当前手机本地 IndexedDB 的所有资产，并强制用 Supabase 云端数据覆盖！确定执行吗？')) return;
-
             document.getElementById('cloudStatusBadge').innerText = '本地清空中...';
             showToast('⚠️', '正在清空本地数据...');
 
@@ -431,21 +432,11 @@ async function processFile(file, targetCategory = currentTab) {
                 const tx = db.transaction('assets', 'readwrite');
                 tx.objectStore('assets').clear();
                 allAssetsCache = null;
-
                 tx.oncomplete = async () => {
                     const { data, error } = await supabaseClient.from('tavern_assets').select('*');
                     if (error) { showToast('❌', `拉取云端失败: ${error.message}`); return; }
-
                     if (data && data.length > 0) {
                         for (let row of data) {
-                            let buffer = null;
-                            if (row.raw_buffer_base64) {
-                                const binary = atob(row.raw_buffer_base64), bytes = new Uint8Array(binary.length);
-                                for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-                                buffer = bytes.buffer;
-                            }
-                            const dataObj = row.card_data?.data || row.card_data || {};
-                            // 处理文件夹名册配置链
                             if (row.id === '___CUSTOM_FOLDERS_CONFIG___' && row.card_data) {
                                 for (let cat in row.card_data) {
                                     if (Array.isArray(row.card_data[cat])) {
@@ -459,14 +450,42 @@ async function processFile(file, targetCategory = currentTab) {
                                 if (Array.isArray(row.card_data.categories) && typeof saveStoredCustomCategories === 'function') saveStoredCustomCategories(row.card_data.categories);
                                 continue;
                             }
-                            const asset = { id: row.id, category: row.category, name: row.name, fileType: row.file_type, rawBuffer: buffer, cardData: row.card_data, subCategory: row.card_data?.subCategory || dataObj.subCategory || null,
-                                    tags: row.card_data?.tags || dataObj.tags || (Array.isArray(row.card_data?.card_data?.tags) ? row.card_data.card_data.tags : []) || null,
-                                    url: row.card_data?.url || dataObj.url || (row.category === 'links' ? row.raw_text?.split('\n')[1] : null) || null, emojiList: row.card_data?.emojiList || dataObj.emojiList || (row.card_data?.data?.emojiList) || null, rawText: row.raw_text, firstMes: dataObj.first_mes || '', alternateGreetings: dataObj.alternate_greetings || [], personality: extractPersonalityDeep(row.card_data || {}), worldbook: dataObj.character_book || (row.category === 'worldbooks' ? row.card_data : null), regexScripts: dataObj.extensions?.regex_scripts || (row.category === 'regex' ? row.card_data : null), createdAt: row.created_at || Date.now() };
+
+                            let buffer = null;
+                            if (row.raw_buffer_base64) {
+                                try {
+                                    const binary = atob(row.raw_buffer_base64), bytes = new Uint8Array(binary.length);
+                                    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                                    buffer = bytes.buffer;
+                                } catch(e){}
+                            }
+
+                            const dataObj = row.card_data?.data || row.card_data || {};
+                            const asset = {
+                                id: row.id,
+                                category: row.category,
+                                name: row.name,
+                                fileType: row.file_type,
+                                rawBuffer: buffer,
+                                cardData: row.card_data,
+                                subCategory: row.card_data?.subCategory || dataObj.subCategory || null,
+                                tags: row.card_data?.tags || dataObj.tags || (Array.isArray(row.card_data?.card_data?.tags) ? row.card_data.card_data.tags : []) || null,
+                                url: row.card_data?.url || dataObj.url || (row.category === 'links' ? row.raw_text?.split('\n')[1] : null) || null,
+                                emojiList: row.card_data?.emojiList || dataObj.emojiList || (row.card_data?.data?.emojiList) || null,
+                                rawText: row.raw_text,
+                                firstMes: dataObj.first_mes || '',
+                                alternateGreetings: dataObj.alternate_greetings || [],
+                                personality: extractPersonalityDeep(row.card_data || {}),
+                                worldbook: dataObj.character_book || (row.category === 'worldbooks' ? row.card_data : null),
+                                regexScripts: dataObj.extensions?.regex_scripts || (row.category === 'regex' ? row.card_data : null),
+                                createdAt: row.created_at || Date.now()
+                            };
 
                             const putTx = db.transaction('assets', 'readwrite');
                             putTx.objectStore('assets').put(asset);
                         }
-                        // 【关键】覆盖恢复后,自动扫描所有资产的 subCategory,动态补建每个大分类下缺失的文件夹白名单
+
+                        // 扫描并补建文件夹
                         const allRestored = await getAllAssets();
                         const folderMap = {};
                         allRestored.forEach(a => {
@@ -495,42 +514,48 @@ async function processFile(file, targetCategory = currentTab) {
                 showToast('❌', '覆盖恢复失败');
             }
         }
-
-                async function syncAssetToCloudSilent(asset) {
+        async function syncAssetToCloudSilent(asset) {
             if (!supabaseClient) return;
             try {
-                let base64Buf = null;
-                if (asset.rawBuffer) {
-                    const bytes = new Uint8Array(asset.rawBuffer); let binary = '';
-                    for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
-                    base64Buf = btoa(binary);
+                const cardData = asset.cardData ? { ...asset.cardData } : {};
+                if (asset.subCategory && !cardData.subCategory) cardData.subCategory = asset.subCategory;
+                if (asset.emojiList) cardData.emojiList = asset.emojiList;
+                if (asset.tags && Array.isArray(asset.tags)) cardData.tags = asset.tags;
+                if (asset.url) cardData.url = asset.url;
+
+                // 🌟 Supabase Storage 工业级直传 Blob (绝不用 Base64 塞数据库，零内存抖动、永不 413)
+                let coverBlob = null;
+                if (asset.cover instanceof Blob) {
+                    coverBlob = asset.cover;
+                } else if (asset.rawBuffer instanceof ArrayBuffer && asset.category === 'gallery') {
+                    coverBlob = new Blob([asset.rawBuffer], { type: asset.fileType || 'image/png' });
                 }
-                // 关键修复:把 subCategory 和 card_data 一起塞进 upsert
-                const cardData = asset.cardData || {};
-                if (asset.subCategory && !cardData.subCategory) {
-                    cardData.subCategory = asset.subCategory;
-                }
-                if (asset.emojiList) {
-                    cardData.emojiList = asset.emojiList;
-                }
-                if (asset.tags && Array.isArray(asset.tags)) {
-                    cardData.tags = asset.tags;
-                }
-                if (asset.url) {
-                    cardData.url = asset.url;
-                }
-                // 【图库图片同步修复】如果 cover 是 Blob/File，转换成 Base64 data URL 嵌入 cardData
-                // 不动 rawBuffer 原逻辑，仅仅是补救 cover Blob 之前不同步云端的 bug
-                if (asset.cover instanceof Blob && !cardData.cover_base64) {
+
+                if (coverBlob) {
                     try {
-                        cardData.cover_base64 = await new Promise((resolve, reject) => {
-                            const reader = new FileReader();
-                            reader.onload = () => resolve(reader.result);
-                            reader.onerror = reject;
-                            reader.readAsDataURL(asset.cover);
-                        });
-                    } catch(e) { console.warn('cover base64 convert failed', e); }
+                        const fileExt = (asset.fileType && asset.fileType.includes('jpeg')) ? 'jpg' : 'png';
+                        const storagePath = `covers/${asset.id}.${fileExt}`;
+                        const { error: uploadErr } = await supabaseClient.storage
+                            .from('asset-covers')
+                            .upload(storagePath, coverBlob, { upsert: true, contentType: coverBlob.type || 'image/png' });
+
+                        if (!uploadErr) {
+                            const { data: publicData } = supabaseClient.storage
+                                .from('asset-covers')
+                                .getPublicUrl(storagePath);
+                            if (publicData && publicData.publicUrl) {
+                                cardData.cover_url = publicData.publicUrl;
+                                delete cardData.cover_base64; // 清理旧冗余
+                            }
+                        } else {
+                            console.warn('Storage upload error (will fallback to text metadata):', uploadErr.message);
+                        }
+                    } catch (stErr) {
+                        console.warn('Storage upload exception:', stErr);
+                    }
                 }
+
+                // 写入纯轻量文本元数据 (几 KB 大小，毫秒级入库)
                 const { error } = await supabaseClient.from('tavern_assets').upsert({
                     id: asset.id,
                     category: asset.category,
@@ -538,12 +563,11 @@ async function processFile(file, targetCategory = currentTab) {
                     file_type: asset.fileType,
                     card_data: cardData,
                     raw_text: asset.rawText || null,
-                    raw_buffer_base64: base64Buf
+                    created_at: asset.createdAt || Date.now()
                 });
-                if (!error) { showToast('⚡', `"${asset.name}"已增量同步至云端`); }
-            } catch(e){}
+                if (!error) { showToast('⚡', `"${asset.name}" 已增量同步至云端`); }
+            } catch(e) { console.error('syncAssetToCloudSilent failed:', e); }
         }
-
         async function syncCustomFoldersToCloudSilent() {
             if (!supabaseClient) return;
             try {
@@ -569,11 +593,9 @@ async function processFile(file, targetCategory = currentTab) {
             const localAssets = await getAllAssets();
             document.getElementById('cloudStatusBadge').innerText = '对比中...';
             showToast('⚡', '正在对比云端与本地资产差异...');
-
             try {
                 const { data: cloudMetadata, error } = await supabaseClient.from('tavern_assets').select('id, created_at');
                 if (error) { showToast('❌', `查询云端失败: ${error.message}`); return; }
-
                 const cloudMap = new Map();
                 if (cloudMetadata) cloudMetadata.forEach(row => cloudMap.set(row.id, row.created_at));
 
@@ -583,57 +605,39 @@ async function processFile(file, targetCategory = currentTab) {
                     if (!cloudTimestamp || (a.createdAt && a.createdAt > cloudTimestamp)) {
                         await syncAssetToCloudSilent(a);
                         syncedCount++;
+                        if (syncedCount % 10 === 0) {
+                            showToast('⚡', `正在增量同步 ${syncedCount} 个变动资产...`);
+                        }
                     }
                 }
-
                 await syncApiKeysToCloudSilent();
                 await syncCustomFoldersToCloudSilent();
                 document.getElementById('cloudStatusBadge').innerText = '同步完成';
-                showToast('✅', `增量同步完成！本次仅上传了 ${syncedCount} 个变动资产`);
+                showToast('✅', `增量同步完成！本次上传了 ${syncedCount} 个变动资产`);
             } catch(e) { showToast('❌', '增量同步失败，请检查网络'); }
             setTimeout(() => document.getElementById('cloudStatusBadge').innerText = '已连接', 3000);
         }
-
         async function restoreFromCloudIncremental() {
             if (!supabaseClient) { alert('未配置 Supabase 云端，无法恢复。请在侧边栏填入 URL 与 Key！'); return; }
             document.getElementById('cloudStatusBadge').innerText = '恢复中...';
             showToast('🔄', '正在对比拉取云端新增资产...');
-
             try {
                 const localAssets = await getAllAssets();
                 const localMap = new Map();
                 localAssets.forEach(a => localMap.set(a.id, a.createdAt || 0));
 
-                // 1. 先进行轻量级元数据查询，避开 select('*') 在大型图库/美化包下的 Supabase 10s 超时
                 const { data: cloudMeta, error: metaErr } = await supabaseClient
                     .from('tavern_assets')
                     .select('id, category, name, file_type, created_at');
-
-                if (metaErr) { 
-                    showToast('❌', `对比云端失败: ${metaErr.message}`); 
+                if (metaErr) {
+                    showToast('❌', `对比云端失败: ${metaErr.message}`);
                     document.getElementById('cloudStatusBadge').innerText = '已连接';
-                    return; 
+                    return;
                 }
-
                 if (cloudMeta && cloudMeta.length > 0) {
-                    // 专门筛选出：API 密钥、自定义设置、以及本地没有或云端更新的全部资产
                     const idsToFetch = [];
-                    let hasApiConfig = false;
-
                     for (let row of cloudMeta) {
-                                                        if (row.id === '___CUSTOM_FOLDERS_CONFIG___') {
-                                    if (row.card_data) {
-                                        for (let cat in row.card_data) {
-                                            const key = 'TAVERN_CUSTOM_FOLDERS_' + cat;
-                                            if (Array.isArray(row.card_data[cat])) {
-                                                localStorage.setItem(key, JSON.stringify(row.card_data[cat]));
-                                            }
-                                        }
-                                    }
-                                    continue;
-                                }
-                                if (row.id === '___API_KEYS_CONFIG___') {
-                            hasApiConfig = true;
+                        if (row.id === '___CUSTOM_FOLDERS_CONFIG___' || row.id === '___API_KEYS_CONFIG___') {
                             idsToFetch.push(row.id);
                             continue;
                         }
@@ -643,33 +647,27 @@ async function processFile(file, targetCategory = currentTab) {
                             idsToFetch.push(row.id);
                         }
                     }
-
                     if (idsToFetch.length === 0) {
-                        showToast('🎉', '本地资产与 API 配置已是最新，无须从云端同步！');
+                        showToast('🎉', '本地资产与配置已是最新，无须从云端同步！');
                         document.getElementById('cloudStatusBadge').innerText = '已连接';
                         return;
                     }
-
-                    showToast('⌛', `正在分批同步 ${idsToFetch.length} 项变动资产（含 API 密钥/图片/美化包）...`);
+                    showToast('⌛', `正在分批同步 ${idsToFetch.length} 项变动资产...`);
                     let restoredCount = 0;
-                    const batchSize = 10;
-
+                    const batchSize = 20; // 纯轻量元数据，单批 20 条毫无压力
                     for (let i = 0; i < idsToFetch.length; i += batchSize) {
                         const batchIds = idsToFetch.slice(i, i + batchSize);
                         const { data: batchData, error: batchErr } = await supabaseClient
                             .from('tavern_assets')
                             .select('*')
                             .in('id', batchIds);
-
                         if (batchErr) {
                             console.error('Batch fetch error:', batchErr);
                             continue;
                         }
-
                         if (batchData && batchData.length > 0) {
                             for (let row of batchData) {
-                                // 处理 API 密钥与自定义分类配置的专门恢复
-                                                                if (row.id === '___CUSTOM_FOLDERS_CONFIG___') {
+                                if (row.id === '___CUSTOM_FOLDERS_CONFIG___') {
                                     if (row.card_data) {
                                         for (let cat in row.card_data) {
                                             const key = 'TAVERN_CUSTOM_FOLDERS_' + cat;
@@ -692,7 +690,6 @@ async function processFile(file, targetCategory = currentTab) {
                                     continue;
                                 }
 
-                                // 处理常规资产（图库图片/美化包/角色卡/表情/文档/链接等）
                                 let buffer = null;
                                 if (row.raw_buffer_base64) {
                                     try {
@@ -700,11 +697,8 @@ async function processFile(file, targetCategory = currentTab) {
                                         const binary = atob(cleanB64), bytes = new Uint8Array(binary.length);
                                         for (let j = 0; j < binary.length; j++) bytes[j] = binary.charCodeAt(j);
                                         buffer = bytes.buffer;
-                                    } catch(err) {
-                                        console.error('Decode base64 failed for asset:', row.id, err);
-                                    }
+                                    } catch(err) {}
                                 }
-
                                 const dataObj = row.card_data?.data || row.card_data || {};
                                 const asset = {
                                     id: row.id,
@@ -725,7 +719,7 @@ async function processFile(file, targetCategory = currentTab) {
                                     regexScripts: dataObj.extensions?.regex_scripts || (row.category === 'regex' ? row.card_data : null),
                                     createdAt: row.created_at || Date.now()
                                 };
-                                
+
                                 const tx = db.transaction('assets', 'readwrite');
                                 tx.objectStore('assets').put(asset);
                                 restoredCount++;
@@ -733,17 +727,8 @@ async function processFile(file, targetCategory = currentTab) {
                         }
                     }
 
-                    // 增量恢复后,扫描所有本地资产的 subCategory,动态补建缺失的文件夹白名单
+                    // 补建文件夹
                     const allRestored = await getAllAssets();
-                    console.log('[WHITELIST REBUILD] total assets:', allRestored.length);
-                    const diagSamples = allRestored.slice(0, 10).map(a => ({ id: a.id, cat: a.category, sub: a.subCategory }));
-                    console.log('[WHITELIST REBUILD] sample 10:', diagSamples);
-                    const subCount = {};
-                    allRestored.forEach(a => {
-                        const k = (a.subCategory || 'NULL') + '|' + a.category;
-                        subCount[k] = (subCount[k] || 0) + 1;
-                    });
-                    console.log('[WHITELIST REBUILD] sub|cat counts:', subCount);
                     const folderMap = {};
                     allRestored.forEach(a => {
                         if (a.subCategory && a.subCategory !== '未分类') {
@@ -751,7 +736,6 @@ async function processFile(file, targetCategory = currentTab) {
                             folderMap[a.category].add(a.subCategory);
                         }
                     });
-                    console.log('[WHITELIST REBUILD] folderMap built:', JSON.stringify([...Object.entries(folderMap)].map(([k,v]) => [k, [...v]])));
                     for (let cat in folderMap) {
                         const key = 'TAVERN_CUSTOM_FOLDERS_' + cat;
                         let list = [];
@@ -760,20 +744,18 @@ async function processFile(file, targetCategory = currentTab) {
                         folderMap[cat].forEach(name => { if (!list.includes(name)) list.push(name); });
                         localStorage.setItem(key, JSON.stringify(list));
                     }
-                    console.log('[WHITELIST REBUILD] After write, TAVERN_CUSTOM_FOLDERS_cards:', localStorage.getItem('TAVERN_CUSTOM_FOLDERS_cards'));
                     if (typeof renderApiKeyList === 'function') renderApiKeyList();
                     if (typeof renderApiKeyCategoryPills === 'function') renderApiKeyCategoryPills();
-                    updateBadges(); 
+                    updateBadges();
                     await renderItems();
-                    showToast('🎉', `云端全模块增量同步完毕！包含 API 密钥、自定义分类及 ${restoredCount} 项大文件资产！`);
+                    showToast('🎉', `云端增量恢复完毕！已同步 ${restoredCount} 项资产及配置！`);
                 } else { showToast('ℹ️', '云端数据库为空'); }
-            } catch(e){ 
-                console.error(e); 
-                showToast('❌', '恢复失败，请检查 Supabase 配置'); 
+            } catch(e){
+                console.error(e);
+                showToast('❌', '恢复失败，请检查 Supabase 配置');
             }
             document.getElementById('cloudStatusBadge').innerText = '已连接';
         }
-
         async function autoSyncFromCloudSilent() {
             if (!supabaseClient) return;
             try { const localAssets = await getAllAssets(); if (localAssets.length === 0) await restoreFromCloudIncremental(); } catch(e){}
@@ -3789,15 +3771,24 @@ async function exportAssetsAsZip() {
             showToast('⚠️', 'JSZip 库未加载，请检查网络');
             return;
         }
-        showToast('⌛', '正在打包所有资产...');
+        showToast('⌛', '正在准备全量导出 (流式打包)...');
         const assets = await getAllAssets();
-        if (!assets.length) {
+        const total = assets.length;
+        if (!total) {
             showToast('⚠️', '没有资产可导出');
             return;
         }
+
         const zip = new JSZip();
         const manifest = [];
-        for (let i = 0; i < assets.length; i++) {
+        const folderConfig = {};
+        ['cards', 'gallery', 'links', 'themes', 'fonts', 'apikeys', 'custom'].forEach(cat => {
+            const stored = localStorage.getItem('TAVERN_CUSTOM_FOLDERS_' + cat);
+            if (stored) folderConfig[cat] = JSON.parse(stored);
+        });
+
+        // 🌟 逐条迭代并写入 zip (每次只处理 1 个，避免巨型内存驻留)
+        for (let i = 0; i < total; i++) {
             const asset = assets[i];
             const entry = {
                 id: asset.id,
@@ -3812,7 +3803,8 @@ async function exportAssetsAsZip() {
                 cardData: asset.cardData || null,
                 createdAt: asset.createdAt
             };
-            // 如果有 cover Blob，转换成 base64 存入 zip
+
+            // 如果有 cover Blob，转换为 Base64
             if (asset.cover instanceof Blob) {
                 try {
                     const dataUrl = await new Promise((resolve, reject) => {
@@ -3833,32 +3825,59 @@ async function exportAssetsAsZip() {
                     entry.raw_buffer_base64 = btoa(binary);
                 } catch(e) {}
             }
+
             const safeName = (asset.name || 'untitled').replace(/[^a-zA-Z0-9_一-鿿]/g, '_').substring(0, 50);
             zip.file(`assets/${i}_${safeName}.json`, JSON.stringify(entry));
             manifest.push({ index: i, id: asset.id, name: asset.name, category: asset.category });
+
+            if ((i + 1) % 50 === 0 || i === total - 1) {
+                showToast('⌛', `打包中 (${i + 1}/${total})...`);
+                await new Promise(r => setTimeout(r, 20)); // 让出主线程 GC
+            }
         }
-        // 保存自定义文件夹配置
-        const folderConfig = {};
-        ['cards', 'gallery', 'links', 'themes', 'fonts', 'apikeys', 'custom'].forEach(cat => {
-            const stored = localStorage.getItem('TAVERN_CUSTOM_FOLDERS_' + cat);
-            if (stored) folderConfig[cat] = JSON.parse(stored);
-        });
+
         zip.file('_manifest.json', JSON.stringify({
             version: 1,
             exportedAt: Date.now(),
-            count: assets.length,
+            count: total,
             manifest: manifest,
             customFolders: folderConfig
         }, null, 2));
-        const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+
+        showToast('📦', '正在压缩生成单份 ZIP 文件...');
         const ts = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
         const filename = `ResourceHub_Backup_${ts}.zip`;
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = filename;
-        a.click();
-        URL.revokeObjectURL(a.href);
-        showToast('🎉', `已导出 ${assets.length} 个资产 (${(blob.size / 1024 / 1024).toFixed(1)}MB)`);
+
+        const hasAndroidBridge = (typeof window.AndroidApp !== 'undefined' && typeof window.AndroidApp.saveBase64File === 'function');
+
+        if (hasAndroidBridge) {
+            // Android 原生桥接：生成 base64 直接调原生 MediaStore 写文件
+            const base64Data = await zip.generateAsync({
+                type: 'base64',
+                compression: 'DEFLATE',
+                compressionOptions: { level: 6 }
+            }, (metadata) => {
+                if (metadata.percent % 25 === 0) {
+                    showToast('⌛', `压缩进度: ${metadata.percent.toFixed(0)}%`);
+                }
+            });
+
+            window.AndroidApp.saveBase64File(base64Data, filename, 'application/zip');
+            showToast('🎉', `完整备份已成功存入 Downloads/: ${filename}`);
+        } else {
+            // Web / 浏览器环境：生成 Blob 并触发下载
+            const blob = await zip.generateAsync({
+                type: 'blob',
+                compression: 'DEFLATE',
+                compressionOptions: { level: 6 }
+            });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(a.href);
+            showToast('🎉', `已导出单份完整备份 (${(blob.size / 1024 / 1024).toFixed(1)}MB)`);
+        }
     } catch (err) {
         console.error('ZIP export failed', err);
         showToast('❌', `导出失败: ${err.message || err}`);
@@ -3880,11 +3899,11 @@ async function importAssetsFromZip() {
                 showToast('⚠️', 'JSZip 库未加载');
                 return;
             }
-            showToast('⌛', '正在解压导入...');
+            showToast('⌛', '正在解压读取备份文件...');
             const zip = await JSZip.loadAsync(file);
             const manifestFile = zip.file('_manifest.json');
             if (!manifestFile) {
-                showToast('❌', '不是有效的 ResourceHub 备份文件');
+                showToast('❌', '不是有效的 ResourceHub 备份文件 (缺少 _manifest.json)');
                 return;
             }
             const manifestData = JSON.parse(await manifestFile.async('string'));
@@ -3933,14 +3952,14 @@ async function importAssetsFromZip() {
                 }
                 await saveAsset(asset);
                 imported++;
-                if (imported % 20 === 0) {
+                if (imported % 20 === 0 || imported === assetFiles.length) {
                     showToast('⌛', `已导入 ${imported}/${assetFiles.length}...`);
                 }
             }
             allAssetsCache = null;
             updateBadges();
             await renderItems();
-            showToast('🎉', `成功导入 ${imported} 个资产`);
+            showToast('🎉', `成功导入 ${imported} 个资产！`);
         } catch (err) {
             console.error('ZIP import failed', err);
             showToast('❌', `导入失败: ${err.message || err}`);
