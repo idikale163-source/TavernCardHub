@@ -3634,8 +3634,32 @@ window.closeEmojiNamerModal = function() {
     }
 };
 
-function initNamerFloatingBtnDrag() {
-    const btn = document.getElementById('namerFloatingBackBtn');
+/* ================= 独立唤起气泡切片生成器 ================= */
+window.openBubbleGenModal = function(e) {
+    if (e && e.stopPropagation) e.stopPropagation();
+    if (e && e.preventDefault) e.preventDefault();
+    if (typeof toggleSidebar === 'function') toggleSidebar();
+
+    const container = document.getElementById('bubbleGenIframeContainer');
+    const frame = document.getElementById('bubbleGenFrame');
+    if (container && frame) {
+        if (frame.src === 'about:blank' || !frame.src) {
+            frame.src = 'tools/bubble-generator.html';
+        }
+        container.style.display = 'flex';
+        initBubbleGenFloatingBtnDrag();
+    }
+};
+
+window.closeBubbleGenModal = function() {
+    const container = document.getElementById('bubbleGenIframeContainer');
+    if (container) {
+        container.style.display = 'none';
+    }
+};
+
+function initBubbleGenFloatingBtnDrag() {
+    const btn = document.getElementById('bubbleGenFloatingBackBtn');
     if (!btn || btn.dataset.dragInited) return;
     btn.dataset.dragInited = 'true';
 
