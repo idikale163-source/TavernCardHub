@@ -3870,12 +3870,15 @@ window.renderGalleryDetailTags = function() {
 /* ================= ZIP 导出与导入 ================= */
 async function exportAssetsAsZip() {
     try {
+        console.log('[EXPORT] 开始导出流程...');
         if (typeof JSZip === 'undefined') {
+            console.error('[EXPORT] JSZip 未定义');
             showToast('⚠️', 'JSZip 库未加载，请检查网络');
             return;
         }
-        showToast('⌛', '正在打包所有资产...');
+        showToast('⌛', '正在读取本地数据...');
         const assets = await getAllAssets();
+        console.log('[EXPORT] 获取到资产数量:', assets.length);
         if (!assets.length) {
             showToast('⚠️', '没有资产可导出');
             return;
@@ -3884,6 +3887,10 @@ async function exportAssetsAsZip() {
         const manifest = [];
         for (let i = 0; i < assets.length; i++) {
             const asset = assets[i];
+            if (i % 20 === 0 || i === assets.length - 1) {
+                showToast('⌛', `正在处理数据 (${i + 1}/${assets.length})...`);
+                console.log(`[EXPORT] 处理资产 [${i + 1}/${assets.length}]: ${asset.name}`);
+            }
             const entry = {
                 id: asset.id,
                 category: asset.category,
@@ -3897,7 +3904,6 @@ async function exportAssetsAsZip() {
                 cardData: asset.cardData || null,
                 createdAt: asset.createdAt
             };
-            // 如果有 cover Blob，转换成 base64 存入 zip
             if (asset.cover instanceof Blob) {
                 try {
                     const dataUrl = await new Promise((resolve, reject) => {
@@ -3907,22 +3913,30 @@ async function exportAssetsAsZip() {
                         reader.readAsDataURL(asset.cover);
                     });
                     entry.cover_base64 = dataUrl;
-                } catch(e) {}
+                } catch(e) {
+                    console.warn(`[EXPORT] 封面转 Base64 失败 (id: ${asset.id}):`, e);
+                }
             }
-            // 如果有 rawBuffer (ArrayBuffer)，转 base64
             if (asset.rawBuffer instanceof ArrayBuffer) {
                 try {
                     const bytes = new Uint8Array(asset.rawBuffer);
                     let binary = '';
-                    for (let j = 0; j < bytes.byteLength; j++) binary += String.fromCharCode(bytes[j]);
+                    const len = bytes.byteLength;
+                    const chunk = 8192;
+                    for (let j = 0; j < len; j += chunk) {
+                        const sub = bytes.subarray(j, Math.min(j + chunk, len));
+                        binary += String.fromCharCode.apply(null, sub);
+                    }
                     entry.raw_buffer_base64 = btoa(binary);
-                } catch(e) {}
+                } catch(e) {
+                    console.warn(`[EXPORT] 数据流转 Base64 失败 (id: ${asset.id}):`, e);
+                }
             }
             const safeName = (asset.name || 'untitled').replace(/[^a-zA-Z0-9_一-鿿]/g, '_').substring(0, 50);
             zip.file(`assets/${i}_${safeName}.json`, JSON.stringify(entry));
             manifest.push({ index: i, id: asset.id, name: asset.name, category: asset.category });
         }
-        // 保存自定义文件夹配置
+
         const folderConfig = {};
         ['cards', 'gallery', 'links', 'themes', 'fonts', 'apikeys', 'custom'].forEach(cat => {
             const stored = localStorage.getItem('TAVERN_CUSTOM_FOLDERS_' + cat);
@@ -3935,17 +3949,53 @@ async function exportAssetsAsZip() {
             manifest: manifest,
             customFolders: folderConfig
         }, null, 2));
-        const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', useWebWorkers: false });
+
+        console.log('[EXPORT] 所有文件已装载，开始压缩打包 (zip.generateAsync)...');
+        showToast('⌛', '正在压缩打包生成 ZIP...');
+        
+        const blob = await zip.generateAsync({
+            type: 'blob',
+            compression: 'DEFLATE',
+            useWebWorkers: false
+        }, (metadata) => {
+            if (metadata.percent) {
+                showToast('⌛', `压缩进度: ${metadata.percent.toFixed(0)}%`);
+                console.log(`[EXPORT] 压缩进度: ${metadata.percent.toFixed(1)}%`);
+            }
+        });
+
+        console.log('[EXPORT] 压缩完成，文件大小:', (blob.size / 1024 / 1024).toFixed(2), 'MB');
         const ts = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
         const filename = `ResourceHub_Backup_${ts}.zip`;
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = filename;
-        a.click();
-        URL.revokeObjectURL(a.href);
-        showToast('🎉', `已导出 ${assets.length} 个资产 (${(blob.size / 1024 / 1024).toFixed(1)}MB)`);
+
+        if (window.AndroidApp && typeof window.AndroidApp.saveBase64File === 'function') {
+            console.log('[EXPORT] 检测到 AndroidApp 桥接，准备调用 saveBase64File');
+            showToast('⌛', '正在保存到手机存储...');
+            const reader = new FileReader();
+            reader.onloadend = function() {
+                try {
+                    const base64 = reader.result.split(',')[1];
+                    window.AndroidApp.saveBase64File(base64, filename, 'application/zip');
+                    showToast('🎉', `已导出 ${assets.length} 个资产 (${(blob.size / 1024 / 1024).toFixed(1)}MB) 到 Download`);
+                } catch(e) {
+                    console.error('[EXPORT] Java 桥接保存抛错:', e);
+                    showToast('❌', `保存失败: ${e.message || e}`);
+                }
+            };
+            reader.readAsDataURL(blob);
+        } else {
+            console.log('[EXPORT] 浏览器环境，触发 a.click 下载');
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+            showToast('🎉', `已导出 ${assets.length} 个资产 (${(blob.size / 1024 / 1024).toFixed(1)}MB)`);
+        }
     } catch (err) {
-        console.error('ZIP export failed', err);
+        console.error('[EXPORT] 导出全流程异常:', err);
         showToast('❌', `导出失败: ${err.message || err}`);
     }
 }
