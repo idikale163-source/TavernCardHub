@@ -3867,21 +3867,17 @@ window.renderGalleryDetailTags = function() {
 };
 
 
-/* ================= ZIP 导出与导入 ================= */
+/* ================= 备份导出与导入 (纯JSON, 无需JSZip) ================= */
 async function exportAssetsAsZip() {
     try {
-        if (typeof JSZip === 'undefined') {
-            showToast('⚠️', 'JSZip 库未加载，请检查网络');
-            return;
-        }
         showToast('⌛', '正在打包所有资产...');
         const assets = await getAllAssets();
         if (!assets.length) {
             showToast('⚠️', '没有资产可导出');
             return;
         }
-        const zip = new JSZip();
         const manifest = [];
+        const assetEntries = [];
         for (let i = 0; i < assets.length; i++) {
             const asset = assets[i];
             const entry = {
@@ -3897,7 +3893,6 @@ async function exportAssetsAsZip() {
                 cardData: asset.cardData || null,
                 createdAt: asset.createdAt
             };
-            // 如果有 cover Blob，转换成 base64 存入 zip
             if (asset.cover instanceof Blob) {
                 try {
                     const dataUrl = await new Promise((resolve, reject) => {
@@ -3909,7 +3904,6 @@ async function exportAssetsAsZip() {
                     entry.cover_base64 = dataUrl;
                 } catch(e) {}
             }
-            // 如果有 rawBuffer (ArrayBuffer)，转 base64
             if (asset.rawBuffer instanceof ArrayBuffer) {
                 try {
                     const bytes = new Uint8Array(asset.rawBuffer);
@@ -3918,39 +3912,37 @@ async function exportAssetsAsZip() {
                     entry.raw_buffer_base64 = btoa(binary);
                 } catch(e) {}
             }
-            const safeName = (asset.name || 'untitled').replace(/[^a-zA-Z0-9_一-鿿]/g, '_').substring(0, 50);
-            zip.file(`assets/${i}_${safeName}.json`, JSON.stringify(entry));
-            manifest.push({ index: i, id: asset.id, name: asset.name, category: asset.category });
+            assetEntries.push(entry);
+            manifest.push({ id: asset.id, name: asset.name, category: asset.category });
+            if ((i + 1) % 50 === 0) {
+                showToast('⌛', `打包中... ${i + 1}/${assets.length}`);
+            }
         }
-        // 保存自定义文件夹配置
         const folderConfig = {};
         ['cards', 'gallery', 'links', 'themes', 'fonts', 'apikeys', 'custom'].forEach(cat => {
             const stored = localStorage.getItem('TAVERN_CUSTOM_FOLDERS_' + cat);
             if (stored) folderConfig[cat] = JSON.parse(stored);
         });
-        zip.file('_manifest.json', JSON.stringify({
-            version: 1,
+        const backupData = JSON.stringify({
+            version: 2,
+            format: 'resourcehub-json-backup',
             exportedAt: Date.now(),
             count: assets.length,
             manifest: manifest,
-            customFolders: folderConfig
-        }, null, 2));
-        const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', useWebWorkers: false }, function(metadata) {
-            if (metadata.percent) {
-                showToast('⌛', `打包中... ${Math.round(metadata.percent)}%`);
-            }
+            customFolders: folderConfig,
+            assets: assetEntries
         });
+        const blob = new Blob([backupData], { type: 'application/json' });
         const ts = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
-        const filename = `ResourceHub_Backup_${ts}.zip`;
+        const filename = `ResourceHub_Backup_${ts}.json`;
         
-        // 优先走 Java 桥接保存 (WebView 下 a.click() 下载不生效)
         if (window.AndroidApp && typeof window.AndroidApp.saveBase64File === 'function') {
             try {
                 const reader = new FileReader();
                 reader.onloadend = function() {
                     const base64 = reader.result.split(',')[1];
                     try {
-                        window.AndroidApp.saveBase64File(base64, filename, 'application/zip');
+                        window.AndroidApp.saveBase64File(base64, filename, 'application/json');
                         showToast('🎉', `已导出 ${assets.length} 个资产 (${(blob.size / 1024 / 1024).toFixed(1)}MB) 到 Download`);
                     } catch(e) {
                         console.error('Java save failed', e);
@@ -3966,7 +3958,6 @@ async function exportAssetsAsZip() {
                 showToast('❌', `导出失败: ${e.message || e}`);
             }
         } else {
-            // 回退到浏览器下载 (网页版环境)
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
             a.download = filename;
@@ -3975,7 +3966,7 @@ async function exportAssetsAsZip() {
             showToast('🎉', `已导出 ${assets.length} 个资产 (${(blob.size / 1024 / 1024).toFixed(1)}MB)`);
         }
     } catch (err) {
-        console.error('ZIP export failed', err);
+        console.error('Export failed', err);
         showToast('❌', `导出失败: ${err.message || err}`);
     }
 }
@@ -3991,28 +3982,24 @@ async function importAssetsFromZip() {
         if (!file) return;
         input.value = '';
         try {
-            if (typeof JSZip === 'undefined') {
-                showToast('⚠️', 'JSZip 库未加载');
-                return;
-            }
-            showToast('⌛', '正在解压导入...');
-            const zip = await JSZip.loadAsync(file);
-            const manifestFile = zip.file('_manifest.json');
-            if (!manifestFile) {
+            showToast('⌛', '正在读取备份文件...');
+            const text = await file.text();
+            const data = JSON.parse(text);
+            
+            if (!data || !data.assets || !Array.isArray(data.assets)) {
                 showToast('❌', '不是有效的 ResourceHub 备份文件');
                 return;
             }
-            const manifestData = JSON.parse(await manifestFile.async('string'));
-            // 恢复自定义文件夹
-            if (manifestData.customFolders) {
-                for (let cat in manifestData.customFolders) {
-                    localStorage.setItem('TAVERN_CUSTOM_FOLDERS_' + cat, JSON.stringify(manifestData.customFolders[cat]));
+            
+            if (data.customFolders) {
+                for (let cat in data.customFolders) {
+                    localStorage.setItem('TAVERN_CUSTOM_FOLDERS_' + cat, JSON.stringify(data.customFolders[cat]));
                 }
             }
+            
             let imported = 0;
-            const assetFiles = Object.keys(zip.files).filter(f => f.startsWith('assets/') && f.endsWith('.json'));
-            for (let i = 0; i < assetFiles.length; i++) {
-                const entry = JSON.parse(await zip.files[assetFiles[i]].async('string'));
+            for (let i = 0; i < data.assets.length; i++) {
+                const entry = data.assets[i];
                 const asset = {
                     id: entry.id,
                     category: entry.category,
@@ -4026,7 +4013,6 @@ async function importAssetsFromZip() {
                     cardData: entry.cardData || null,
                     createdAt: entry.createdAt || Date.now()
                 };
-                // 从 base64 还原 cover Blob
                 if (entry.cover_base64) {
                     try {
                         const arr = entry.cover_base64.split(',');
@@ -4037,7 +4023,6 @@ async function importAssetsFromZip() {
                         asset.cover = new Blob([nbytes], { type: mime });
                     } catch(e) { console.warn('cover restore failed', e); }
                 }
-                // 从 base64 还原 rawBuffer
                 if (entry.raw_buffer_base64) {
                     try {
                         const bstr = atob(entry.raw_buffer_base64);
@@ -4049,7 +4034,7 @@ async function importAssetsFromZip() {
                 await saveAsset(asset);
                 imported++;
                 if (imported % 20 === 0) {
-                    showToast('⌛', `已导入 ${imported}/${assetFiles.length}...`);
+                    showToast('⌛', `已导入 ${imported}/${data.assets.length}...`);
                 }
             }
             allAssetsCache = null;
@@ -4057,7 +4042,7 @@ async function importAssetsFromZip() {
             await renderItems();
             showToast('🎉', `成功导入 ${imported} 个资产`);
         } catch (err) {
-            console.error('ZIP import failed', err);
+            console.error('Import failed', err);
             showToast('❌', `导入失败: ${err.message || err}`);
         }
     };
