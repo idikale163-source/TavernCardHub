@@ -3935,7 +3935,7 @@ async function exportAssetsAsZip() {
             manifest: manifest,
             customFolders: folderConfig
         }, null, 2));
-        const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+        const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', useWebWorkers: false });
         const ts = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
         const filename = `ResourceHub_Backup_${ts}.zip`;
         const a = document.createElement('a');
