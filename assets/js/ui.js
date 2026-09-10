@@ -3935,15 +3935,45 @@ async function exportAssetsAsZip() {
             manifest: manifest,
             customFolders: folderConfig
         }, null, 2));
-        const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+        const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', useWebWorkers: false }, function(metadata) {
+            if (metadata.percent) {
+                showToast('⌛', `打包中... ${Math.round(metadata.percent)}%`);
+            }
+        });
         const ts = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
         const filename = `ResourceHub_Backup_${ts}.zip`;
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = filename;
-        a.click();
-        URL.revokeObjectURL(a.href);
-        showToast('🎉', `已导出 ${assets.length} 个资产 (${(blob.size / 1024 / 1024).toFixed(1)}MB)`);
+        
+        // 优先走 Java 桥接保存 (WebView 下 a.click() 下载不生效)
+        if (window.AndroidApp && typeof window.AndroidApp.saveBase64File === 'function') {
+            try {
+                const reader = new FileReader();
+                reader.onloadend = function() {
+                    const base64 = reader.result.split(',')[1];
+                    try {
+                        window.AndroidApp.saveBase64File(base64, filename, 'application/zip');
+                        showToast('🎉', `已导出 ${assets.length} 个资产 (${(blob.size / 1024 / 1024).toFixed(1)}MB) 到 Download`);
+                    } catch(e) {
+                        console.error('Java save failed', e);
+                        showToast('❌', `保存失败: ${e.message || e}`);
+                    }
+                };
+                reader.onerror = function() {
+                    showToast('❌', '文件读取失败');
+                };
+                reader.readAsDataURL(blob);
+            } catch(e) {
+                console.error('Bridge save failed', e);
+                showToast('❌', `导出失败: ${e.message || e}`);
+            }
+        } else {
+            // 回退到浏览器下载 (网页版环境)
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(a.href);
+            showToast('🎉', `已导出 ${assets.length} 个资产 (${(blob.size / 1024 / 1024).toFixed(1)}MB)`);
+        }
     } catch (err) {
         console.error('ZIP export failed', err);
         showToast('❌', `导出失败: ${err.message || err}`);
