@@ -3938,29 +3938,12 @@ async function exportAssetsAsZip() {
         const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
         const ts = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
         const filename = `ResourceHub_Backup_${ts}.zip`;
-        // APK 环境：走 Java 桥接保存；网页环境：走浏览器下载
-        if (window.AndroidApp &amp;&amp; typeof window.AndroidApp.saveBase64File === 'function') {
-            const reader = new FileReader();
-            reader.onloadend = function() {
-                try {
-                    const base64 = reader.result.split(',')[1];
-                    window.AndroidApp.saveBase64File(base64, filename, 'application/zip');
-                    showToast('🎉', `已导出 ${assets.length} 个资产 (${(blob.size / 1024 / 1024).toFixed(1)}MB) 到 Download`);
-                } catch(e) {
-                    console.error('Java save failed', e);
-                    showToast('❌', `保存失败: ${e.message || e}`);
-                }
-            };
-            reader.onerror = function() { showToast('❌', '文件读取失败'); };
-            reader.readAsDataURL(blob);
-        } else {
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = filename;
-            a.click();
-            URL.revokeObjectURL(a.href);
-            showToast('🎉', `已导出 ${assets.length} 个资产 (${(blob.size / 1024 / 1024).toFixed(1)}MB)`);
-        }
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        showToast('🎉', `已导出 ${assets.length} 个资产 (${(blob.size / 1024 / 1024).toFixed(1)}MB)`);
     } catch (err) {
         console.error('ZIP export failed', err);
         showToast('❌', `导出失败: ${err.message || err}`);
