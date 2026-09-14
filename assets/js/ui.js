@@ -214,7 +214,8 @@ if (fileIn) {
 
 async function processFile(file, targetCategory = currentTab) {
             const ext=file.name.split('.').pop().toLowerCase();
-            const id='asset_'+Date.now()+'_'+Math.random().toString(36).slice(2,11);
+            const genId=()=> 'asset_'+Date.now()+'_'+Math.random().toString(36).slice(2,11);
+            const id = genId(); // 【同名堆叠】每次导入生成全新独立 ID，同名卡不覆盖
             const category=categoryStorageKey(targetCategory);
             const folder=currentFolderOpened || '';
             if (isCustomCategoryTab(category)) {
@@ -222,29 +223,29 @@ async function processFile(file, targetCategory = currentTab) {
                 let preview='';
                 const textExts=['txt','css','json','html','htm','js','ts','xml','md','yaml','yml','csv','ini','log'];
                 if (textExts.includes(ext)) { try { preview=await file.text(); } catch(e) { preview=''; } }
-                await saveAsset({id, category, subCategory:folder, name:file.name, fileType:ext || 'bin', rawBuffer:raw, byteSize:raw.byteLength, rawText:preview, createdAt:Date.now()});
+                await saveAsset({id:genId(), category, subCategory:folder, name:file.name, fileType:ext || 'bin', rawBuffer:raw, byteSize:raw.byteLength, rawText:preview, createdAt:Date.now()});
                 return;
             }
             if (ext==='png' || ext==='jpg' || ext==='jpeg' || ext==='webp' || ext==='gif') {
                 const raw=await file.arrayBuffer(); 
                 if (category==='gallery') {
-                    await saveAsset({id, category:'gallery', subCategory:folder, name:cleanImportName(file.name), fileType:ext, rawBuffer:raw, createdAt:Date.now()});
+                    await saveAsset({id:genId(), category:'gallery', subCategory:folder, name:cleanImportName(file.name), fileType:ext, rawBuffer:raw, createdAt:Date.now()});
                     return;
                 }
                 let cardData={}; const chunk=extractCharaChunk(raw);
                 if(chunk) { try { cardData=JSON.parse(chunk); } catch(e){} }
                 const d=cardData.data||cardData;
-                await saveAsset({id,category:'cards',subCategory:folder,name:d.name||cleanImportName(file.name),fileType:ext,rawBuffer:raw,cardData,tags:extractTagsFromData(d),firstMes:d.first_mes||'',alternateGreetings:d.alternate_greetings||[],personality:extractPersonalityDeep(cardData),worldbook:d.character_book||null,regexScripts:d.extensions?.regex_scripts||null,rawText:JSON.stringify(cardData,null,2),createdAt:Date.now()});
+                await saveAsset({id:genId(),category:'cards',subCategory:folder,name:d.name||cleanImportName(file.name),fileType:ext,rawBuffer:raw,cardData,tags:extractTagsFromData(d),firstMes:d.first_mes||'',alternateGreetings:d.alternate_greetings||[],personality:extractPersonalityDeep(cardData),worldbook:d.character_book||null,regexScripts:d.extensions?.regex_scripts||null,rawText:JSON.stringify(cardData,null,2),createdAt:Date.now()});
                 return;
             }
             if (ext==='json') {
                 const text=await file.text(); let json={}; try { json=JSON.parse(text); } catch(e){}
                 if (category==='cards') {
-                    const d=json.data||json; await saveAsset({id,category:'cards',subCategory:folder,name:d.name||cleanImportName(file.name),fileType:'json',cardData:json,tags:extractTagsFromData(d),rawText:text,personality:extractPersonalityDeep(json),worldbook:d.character_book||null,createdAt:Date.now()});
+                    const d=json.data||json; await saveAsset({id:genId(),category:'cards',subCategory:folder,name:d.name||cleanImportName(file.name),fileType:'json',cardData:json,tags:extractTagsFromData(d),rawText:text,personality:extractPersonalityDeep(json),worldbook:d.character_book||null,createdAt:Date.now()});
                 } else if (category==='worldbooks') {
-                    await saveAsset({id,category:'worldbooks',subCategory:folder,name:json.name||cleanImportName(file.name),fileType:'json',cardData:json,worldbook:json,rawText:text,createdAt:Date.now()});
+                    await saveAsset({id:genId(),category:'worldbooks',subCategory:folder,name:json.name||cleanImportName(file.name),fileType:'json',cardData:json,worldbook:json,rawText:text,createdAt:Date.now()});
                 } else {
-                    await saveAsset({id,category,subCategory:folder,name:cleanImportName(file.name),fileType:'json',cardData:json,rawText:text,createdAt:Date.now()});
+                    await saveAsset({id:genId(),category,subCategory:folder,name:cleanImportName(file.name),fileType:'json',cardData:json,rawText:text,createdAt:Date.now()});
                 }
                 return;
             }
@@ -252,30 +253,245 @@ async function processFile(file, targetCategory = currentTab) {
                 const text=await file.text();
                 if (category==='emojis') {
                     const parsed=parseEmojiTextLines(text); if(!parsed.length) throw new Error('没有识别到表情链接');
-                    await saveAsset({id,category:'emojis',subCategory:folder,name:cleanImportName(file.name),fileType:'json',emojiList:parsed,rawText:text,createdAt:Date.now()});
+                    await saveAsset({id:genId(),category:'emojis',subCategory:folder,name:cleanImportName(file.name),fileType:'json',emojiList:parsed,rawText:text,createdAt:Date.now()});
                 } else {
-                    await saveAsset({id,category,subCategory:folder,name:cleanImportName(file.name),fileType:ext,rawText:text,createdAt:Date.now()});
+                    await saveAsset({id:genId(),category,subCategory:folder,name:cleanImportName(file.name),fileType:ext,rawText:text,createdAt:Date.now()});
                 }
                 return;
             }
             if (ext==='docx') {
                 const raw=await file.arrayBuffer(); const result=await mammoth.extractRawText({arrayBuffer:raw});
-                await saveAsset({id,category,subCategory:folder,name:cleanImportName(file.name),fileType:'docx',rawText:result.value,rawBuffer:raw,createdAt:Date.now()}); return;
+                await saveAsset({id:genId(),category,subCategory:folder,name:cleanImportName(file.name),fileType:'docx',rawText:result.value,rawBuffer:raw,createdAt:Date.now()}); return;
+            }
+            if (ext==='iso') {
+                try { await processIsoFile(file, category, folder); }
+                catch(e) { console.error('[ISO] 解析失败:', e); showToast('\u26a0\ufe0f', 'ISO 解析失败'); }
+                return;
+            }
+            if (['rar','7z','tar','gz','bz2','xz'].includes(ext)) {
+                // 浏览器无法解压 rar/7z 等格式，整包入库保留原文件
+                const raw=await file.arrayBuffer();
+                await saveAsset({id:genId(),category,subCategory:folder,name:cleanImportName(file.name),fileType:ext,rawBuffer:raw,byteSize:raw.byteLength,createdAt:Date.now()});
+                showToast('\ud83d\udce6', (ext.toUpperCase()) + ' \u538b\u7f29\u5305\u5df2\u6574\u5305\u5165\u5e93\uff08\u6d4f\u89c8\u5668\u4e0d\u652f\u6301\u89e3\u538b\u8be5\u683c\u5f0f\uff09');
+                return;
             }
             if (ext==='zip') {
-                const raw=await file.arrayBuffer(); 
-                const cat = (category === 'sandbox') ? 'sandbox' : category;
-                await saveAsset({id,category:cat,subCategory:folder,name:cleanImportName(file.name),fileType:'zip',rawBuffer:raw,createdAt:Date.now()}); 
+                if (category === 'sandbox') {
+                    const raw=await file.arrayBuffer();
+                    await saveAsset({id:genId(),category:'sandbox',subCategory:folder,name:cleanImportName(file.name),fileType:'zip',rawBuffer:raw,createdAt:Date.now()});
+                    return;
+                }
+                try { await processZipNested(file, category, folder); }
+                catch(e) { console.error('[ZIP-NEST] fail:', e); showToast('\u26a0\ufe0f', '\u538b\u7f29\u5305\u89e3\u6790\u5931\u8d25'); }
                 return;
             }
             if (ext==='html' || ext==='htm') {
                 const rawText = await file.text();
                 const cat = (category === 'sandbox') ? 'sandbox' : category;
-                await saveAsset({id,category:cat,subCategory:folder,name:cleanImportName(file.name),fileType:'html',rawText:rawText,createdAt:Date.now()});
+                await saveAsset({id:genId(),category:cat,subCategory:folder,name:cleanImportName(file.name),fileType:'html',rawText:rawText,createdAt:Date.now()});
                 return;
             }
-            const raw=await file.arrayBuffer(); await saveAsset({id,category,subCategory:folder,name:cleanImportName(file.name),fileType:ext||'bin',rawBuffer:raw,createdAt:Date.now()}); return;
+            const raw=await file.arrayBuffer(); await saveAsset({id:genId(),category,subCategory:folder,name:cleanImportName(file.name),fileType:ext||'bin',rawBuffer:raw,createdAt:Date.now()}); return;
         }
+                        // ===== ISO9660 解析器 v3（Joliet 优先，完整中文文件名）=====
+        async function processIsoFile(file, category, folder, depth = 0) {
+            if (depth > 3) return;
+            const buf = await file.arrayBuffer();
+            const dv = new DataView(buf);
+            const u8 = new Uint8Array(buf);
+            // 定位 PVD 和 Joliet 补充卷
+            let pvd = -1, jolietOff = -1;
+            for (let s = 16; s < 40; s++) {
+                const off = s * 2048;
+                if (off + 8 > buf.byteLength) break;
+                const type = dv.getUint8(off);
+                if (String.fromCharCode(dv.getUint8(off+1), dv.getUint8(off+2), dv.getUint8(off+3), dv.getUint8(off+4), dv.getUint8(off+5)) !== 'CD001') break;
+                if (type === 255) break;
+                if (type === 1) pvd = off;
+                if (type === 2) {
+                    const esc = u8.slice(off+88, off+95);
+                    if (esc[0] === 0x25 && esc[1] === 0x2f) jolietOff = off;
+                }
+            }
+            if (pvd < 0) { showToast('⚠️', '不是有效的 ISO 镜像（CD001 标识未找到）'); return; }
+            // 优先 Joliet
+            const useJoliet = jolietOff >= 0;
+            const rootDR = useJoliet ? jolietOff + 156 : pvd + 156;
+            const isCardMode = (category === 'cards' || category === 'worldbooks');
+            const isDocMode  = (category === 'docs');
+            let found = 0;
+            const MAX_FILES = 500;
+            function decodeName(bytes) {
+                if (useJoliet) {
+                    // UTF-16BE
+                    let s = '';
+                    for (let k = 0; k + 1 < bytes.length; k += 2) {
+                        s += String.fromCharCode((bytes[k] << 8) | bytes[k+1]);
+                    }
+                    return s.split(';')[0];
+                }
+                let s = '';
+                for (let k = 0; k < bytes.length; k++) s += String.fromCharCode(bytes[k]);
+                return s.split(';')[0];
+            }
+            async function walkDir(dirLba, dirSize, depth) {
+                if (depth > 6 || found >= MAX_FILES) return;
+                const start = dirLba * 2048;
+                let p = start;
+                const end = start + dirSize;
+                while (p < end - 1 && found < MAX_FILES) {
+                    const len = u8[p];
+                    if (len === 0) { p = (Math.floor(p / 2048) + 1) * 2048; continue; }
+                    if (p + len > end || len < 34) break;
+                    const extSectors = u8[p+1];
+                    const recLba = dv.getUint32(p+2, true);
+                    const recSize = dv.getUint32(p+10, true);
+                    const flags = u8[p+25];
+                    const nameLen = u8[p+32];
+                    const nameBytes = u8.slice(p+33, p+33+nameLen);
+                    p += len;
+                    let name = decodeName(nameBytes).replace(/\u0000/g, '').trim();
+                    // 跳过 . 和 .. 记录
+                    if (!name || name === '\u0001' || name === '.' || name === '..') continue;
+                    if (flags & 0x02) {
+                        await walkDir(recLba, recSize, depth + 1);
+                        continue;
+                    }
+                    const fStart = recLba * 2048;
+                    const fData = u8.slice(fStart, fStart + recSize);
+                    const lower = name.toLowerCase();
+                    const base = cleanImportName(name);
+                    try {
+                        if (isCardMode) {
+                            if (lower.endsWith('.png')) {
+                                if (extractCharaChunk(fData.buffer)) {
+                                    const chunk2 = extractCharaChunk(fData.buffer);
+                                    let cardData = {}; try { cardData = JSON.parse(chunk2); } catch(e) {}
+                                    const d2 = cardData.data || cardData;
+                                    await saveAsset({id:'asset_'+Date.now()+'_'+Math.random().toString(36).slice(2,11),category:'cards',subCategory:folder,name:d2.name||base,fileType:'png',rawBuffer:fData.buffer,cardData,tags:extractTagsFromData(d2),firstMes:d2.first_mes||'',alternateGreetings:d2.alternate_greetings||[],personality:extractPersonalityDeep(cardData),worldbook:d2.character_book||null,rawText:JSON.stringify(cardData,null,2),createdAt:Date.now()});
+                                    found++;
+                                }
+                            } else if (lower.endsWith('.json')) {
+                                const text = new TextDecoder('utf-8', {fatal:false}).decode(fData);
+                                let json; try { json = JSON.parse(text); } catch(e) { continue; }
+                                const looksLikeCard = !!(json.spec || (json.data && json.data.name) || json.name || (json.data && json.data.character_book) || json.entries);
+                                if (looksLikeCard) {
+                                    const d3 = json.data || json;
+                                    await saveAsset({id:'asset_'+Date.now()+'_'+Math.random().toString(36).slice(2,11),category: category === 'worldbooks' ? 'worldbooks' : 'cards',subCategory:folder,name:d3.name||base,fileType:'json',cardData:json,tags:extractTagsFromData(d3),rawText:text,personality:extractPersonalityDeep(json),worldbook: category === 'worldbooks' ? json : (d3.character_book||null),createdAt:Date.now()});
+                                    found++;
+                                }
+                            }
+                        } else if (isDocMode) {
+                            if (['txt','md','css','html','htm','log','csv'].some(e2 => lower.endsWith('.' + e2))) {
+                                let text;
+                                try { text = new TextDecoder('utf-8', {fatal:false}).decode(fData); }
+                                catch(e) { text = new TextDecoder('gbk').decode(fData); }
+                                await saveAsset({id:'asset_'+Date.now()+'_'+Math.random().toString(36).slice(2,11),category:'docs',subCategory:folder,name:base,fileType:lower.split('.').pop(),rawText:text,byteSize:recSize,createdAt:Date.now()});
+                                found++;
+                            } else if (lower.endsWith('.docx')) {
+                                const result = await mammoth.extractRawText({arrayBuffer:fData.buffer});
+                                await saveAsset({id:'asset_'+Date.now()+'_'+Math.random().toString(36).slice(2,11),category:'docs',subCategory:folder,name:base,fileType:'docx',rawText:result.value,rawBuffer:fData.buffer,byteSize:recSize,createdAt:Date.now()});
+                                found++;
+                            }
+                        } else {
+                            const textExts = ['txt','css','json','html','htm','js','ts','xml','md','yaml','yml','csv','ini','log'];
+                            let rawText = '';
+                            if (textExts.some(e2 => lower.endsWith('.' + e2))) { try { rawText = new TextDecoder('utf-8', {fatal:false}).decode(fData); } catch(e){} }
+                            await saveAsset({id:'asset_'+Date.now()+'_'+Math.random().toString(36).slice(2,11),category,subCategory:folder,name:base,fileType:lower.split('.').pop() || 'bin',rawBuffer:fData.buffer,byteSize:recSize,rawText:rawText,createdAt:Date.now()});
+                            found++;
+                        }
+                    } catch(e) { console.warn('[ISO] skip:', name, e); }
+                }
+            }
+            const rootExt = u8[rootDR+1];
+            const rootLba = dv.getUint32(rootDR+2, true);
+            const rootSize = dv.getUint32(rootDR+10, true);
+            await walkDir(rootLba, rootSize, 0);
+            showToast(found > 0 ? '🎉' : 'ℹ️', 'ISO 解析完成：' + found + ' 个文件已入库');
+        }
+        async function processZipNested(file, category, folder, depth = 0) {
+            if (typeof JSZip === 'undefined') { showToast('\u26a0\ufe0f', 'JSZip \u5e93\u672a\u52a0\u8f7d'); return; }
+            if (depth > 5) return;
+            let zip;
+            try { zip = await JSZip.loadAsync(file); }
+            catch(e) { showToast('\u26a0\ufe0f', '\u538b\u7f29\u5305\u65e0\u6cd5\u89e3\u6790\uff08\u53ef\u80fd\u5df2\u635f\u574f\u6216\u975e zip \u683c\u5f0f\uff09'); return; }
+            const isCardMode = (category === 'cards' || category === 'worldbooks');
+            const isDocMode  = (category === 'docs');
+            if (!isCardMode && !isDocMode) {
+                const raw=await file.arrayBuffer();
+                await saveAsset({id:'asset_'+Date.now()+'_'+Math.random().toString(36).slice(2,11),category,subCategory:folder,name:cleanImportName(file.name),fileType:'zip',rawBuffer:raw,createdAt:Date.now()});
+                return;
+            }
+            const entries = Object.values(zip.files).filter(f => !f.dir);
+            const MAX_ENTRIES = 500;
+            if (entries.length > MAX_ENTRIES) showToast('\u26a0\ufe0f', '\u538b\u7f29\u5305\u6587\u4ef6\u8fc7\u591a\uff0c\u4ec5\u89e3\u6790\u524d ' + MAX_ENTRIES + ' \u9879');
+            let found = 0;
+            for (const entry of entries.slice(0, MAX_ENTRIES)) {
+                const baseName = entry.name.split('/').pop();
+                if (!baseName || baseName.startsWith('_') || baseName.startsWith('.')) continue;
+                const lower = baseName.toLowerCase();
+                try {
+                    if (isCardMode) {
+                        if (lower.endsWith('.zip')) {
+                            const innerBlob = await entry.async('blob');
+                            await processZipNested(innerBlob, category, folder, depth + 1);
+                            continue;
+                        }
+                        if (['rar','7z','iso','tar','gz','bz2','xz'].some(ae => lower.endsWith('.' + ae))) {
+                            const raw = await entry.async('arraybuffer');
+                            await saveAsset({id:'asset_'+Date.now()+'_'+Math.random().toString(36).slice(2,11),category,subCategory:folder,name:cleanImportName(baseName),fileType:lower.split('.').pop(),rawBuffer:raw,byteSize:raw.byteLength,createdAt:Date.now()});
+                            found++;
+                            continue;
+                        }
+                        if (lower.endsWith('.png')) {
+                            const raw = await entry.async('arraybuffer');
+                            if (extractCharaChunk(raw)) {
+                                const chunk2 = extractCharaChunk(raw);
+                                let cardData = {}; try { cardData = JSON.parse(chunk2); } catch(e) {}
+                                const d2 = cardData.data || cardData;
+                                await saveAsset({id:'asset_'+Date.now()+'_'+Math.random().toString(36).slice(2,11),category:'cards',subCategory:folder,name:d2.name||cleanImportName(baseName),fileType:'png',rawBuffer:raw,cardData,tags:extractTagsFromData(d2),firstMes:d2.first_mes||'',alternateGreetings:d2.alternate_greetings||[],personality:extractPersonalityDeep(cardData),worldbook:d2.character_book||null,regexScripts:d2.extensions&&d2.extensions.regex_scripts||null,rawText:JSON.stringify(cardData,null,2),createdAt:Date.now()});
+                                found++;
+                            }
+                            continue;
+                        }
+                        if (lower.endsWith('.json')) {
+                            const text = await entry.async('string');
+                            let json; try { json = JSON.parse(text); } catch(e) { continue; }
+                            const looksLikeCard = !!(json.spec || (json.data && json.data.name) || json.name || (json.data && json.data.character_book) || json.entries);
+                            if (looksLikeCard) {
+                                if (category === 'worldbooks') {
+                                    await saveAsset({id:'asset_'+Date.now()+'_'+Math.random().toString(36).slice(2,11),category:'worldbooks',subCategory:folder,name:json.name||cleanImportName(baseName),fileType:'json',cardData:json,worldbook:json,rawText:text,createdAt:Date.now()});
+                                } else {
+                                    const d3 = json.data || json;
+                                    await saveAsset({id:'asset_'+Date.now()+'_'+Math.random().toString(36).slice(2,11),category:'cards',subCategory:folder,name:d3.name||cleanImportName(baseName),fileType:'json',cardData:json,tags:extractTagsFromData(d3),rawText:text,personality:extractPersonalityDeep(json),worldbook:d3.character_book||null,createdAt:Date.now()});
+                                }
+                                found++;
+                            }
+                            continue;
+                        }
+                        continue;
+                    }
+                    if (isDocMode) {
+                        if (['txt','md','css','html','htm','log','csv'].some(e2 => lower.endsWith('.' + e2))) {
+                            const text = await entry.async('string');
+                            await saveAsset({id:'asset_'+Date.now()+'_'+Math.random().toString(36).slice(2,11),category:'docs',subCategory:folder,name:cleanImportName(baseName),fileType:lower.split('.').pop(),rawText:text,createdAt:Date.now()});
+                            found++;
+                        } else if (lower.endsWith('.docx')) {
+                            const raw = await entry.async('arraybuffer');
+                            const result = await mammoth.extractRawText({arrayBuffer:raw});
+                            await saveAsset({id:'asset_'+Date.now()+'_'+Math.random().toString(36).slice(2,11),category:'docs',subCategory:folder,name:cleanImportName(baseName),fileType:'docx',rawText:result.value,rawBuffer:raw,createdAt:Date.now()});
+                            found++;
+                        } else if (lower.endsWith('.zip')) {
+                            const innerBlob = await entry.async('blob');
+                            await processZipNested(innerBlob, 'docs', folder, depth + 1);
+                        }
+                        continue;
+                    }
+                } catch(e) { console.warn('[ZIP-NEST] skip:', entry.name, e); }
+            }
+            showToast(found > 0 ? '\ud83c\udf89' : '\u2139\ufe0f', '\u538b\u7f29\u5305\u89e3\u6790\u5b8c\u6210\uff1a' + found + ' \u4e2a' + (isCardMode ? '\u89d2\u8272\u5361/\u4e16\u754c\u4e66' : '\u6587\u6863') + '\u5df2\u5165\u5e93\uff0c\u5176\u4f59\u6587\u4ef6\u5df2\u5ffd\u7565');
+        }
+
         function parseEmojiTextLines(text) {
             const lines = text.split(/\r?\n/);
             const results = [];
