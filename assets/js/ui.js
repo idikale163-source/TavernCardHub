@@ -4299,3 +4299,106 @@ async function importAssetsFromZip() {
     };
     input.click();
 }
+
+
+/* ================= 角色卡v2 (cunchu) 全屏模态与可拖动小按钮 ================= */
+let charV2HasMoved = false;
+
+window.handleCharacterV2BackClick = function(e) {
+    if (charV2HasMoved) {
+        charV2HasMoved = false;
+        return;
+    }
+    closeCharacterV2Modal();
+};
+
+window.openCharacterV2Modal = function(e) {
+    if (e && e.stopPropagation) e.stopPropagation();
+    if (e && e.preventDefault) e.preventDefault();
+    if (typeof toggleSidebar === 'function') toggleSidebar();
+
+    const container = document.getElementById('characterV2IframeContainer');
+    const frame = document.getElementById('characterV2Frame');
+    if (container && frame) {
+        if (frame.src === 'about:blank' || !frame.src || frame.src.endsWith('about:blank')) {
+            frame.src = 'tools/character-v2/index.html';
+        }
+        container.style.display = 'flex';
+        initCharacterV2FloatingBtnDrag();
+    }
+};
+
+window.closeCharacterV2Modal = function() {
+    const container = document.getElementById('characterV2IframeContainer');
+    if (container) {
+        container.style.display = 'none';
+    }
+};
+
+function initCharacterV2FloatingBtnDrag() {
+    const btn = document.getElementById('characterV2FloatingBackBtn');
+    if (!btn || btn.dataset.dragInited) return;
+    btn.dataset.dragInited = 'true';
+
+    let isDragging = false;
+    let startX, startY, initialLeft, initialTop;
+
+    // 触摸端 (手机/平板)
+    btn.addEventListener('touchstart', function(e) {
+        const touch = e.touches[0];
+        isDragging = true;
+        charV2HasMoved = false;
+        startX = touch.clientX;
+        startY = touch.clientY;
+        const rect = btn.getBoundingClientRect();
+        initialLeft = rect.left;
+        initialTop = rect.top;
+    }, { passive: true });
+
+    window.addEventListener('touchmove', function(e) {
+        if (!isDragging) return;
+        const touch = e.touches[0];
+        const dx = touch.clientX - startX;
+        const dy = touch.clientY - startY;
+        if (Math.abs(dx) > 5 || Math.abs(dy) > 5) charV2HasMoved = true;
+        let newX = initialLeft + dx;
+        let newY = initialTop + dy;
+        newX = Math.max(8, Math.min(window.innerWidth - btn.offsetWidth - 8, newX));
+        newY = Math.max(8, Math.min(window.innerHeight - btn.offsetHeight - 8, newY));
+        btn.style.left = newX + 'px';
+        btn.style.top = newY + 'px';
+    }, { passive: true });
+
+    window.addEventListener('touchend', function() {
+        isDragging = false;
+    });
+
+    // 鼠标端 (PC/浏览器模拟)
+    btn.addEventListener('mousedown', function(e) {
+        isDragging = true;
+        charV2HasMoved = false;
+        startX = e.clientX;
+        startY = e.clientY;
+        const rect = btn.getBoundingClientRect();
+        initialLeft = rect.left;
+        initialTop = rect.top;
+        e.preventDefault();
+    });
+
+    window.addEventListener('mousemove', function(e) {
+        if (!isDragging) return;
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        if (Math.abs(dx) > 5 || Math.abs(dy) > 5) charV2HasMoved = true;
+        let newX = initialLeft + dx;
+        let newY = initialTop + dy;
+        newX = Math.max(8, Math.min(window.innerWidth - btn.offsetWidth - 8, newX));
+        newY = Math.max(8, Math.min(window.innerHeight - btn.offsetHeight - 8, newY));
+        btn.style.left = newX + 'px';
+        btn.style.top = newY + 'px';
+    });
+
+    window.addEventListener('mouseup', function() {
+        isDragging = false;
+    });
+}

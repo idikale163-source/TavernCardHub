@@ -1,7 +1,8 @@
 /**
- * Sandbox & App Runner Module for ResourceHub
+ * Sandbox & App Runner Module for ResourceHub (Pure Offline & PWA Compatible)
  * 支持单文件 HTML / TXT 以及多文件 ZIP (小手机/微应用) 的虚拟解压与全屏沉浸式运行
  * 配备可自由拖拽、防迷失的悬浮返回胶囊
+ * 深度打通 iframe 内部（小手机/各种网页）通过 postMessage 和 原生桥接导出数据到安卓系统
  */
 
 (function () {
@@ -17,8 +18,58 @@
     // 清理创建的虚拟 Blob 资源
     function cleanupBlobs() {
         if (currentPreviewBlobUrls && currentPreviewBlobUrls.length > 0) {
-            currentPreviewBlobUrls.forEach(url => URL.revokeObjectURL(url));
+            currentPreviewBlobUrls.forEach(url => {
+                try { URL.revokeObjectURL(url); } catch(e){}
+            });
             currentPreviewBlobUrls = [];
+        }
+    }
+
+    // 全局监听来自沙盒 iframe 的导出跨域广播
+    window.addEventListener('message', async function(e) {
+        if (e.data && e.data.type === 'OPERIT_SANDBOX_EXPORT') {
+            const { base64Data, filename, mimeType } = e.data;
+            if (base64Data && filename) {
+                saveExportedData(base64Data, filename, mimeType || 'application/octet-stream');
+            }
+        }
+    });
+
+    // 统一导出调度器：优先调用 AndroidApp 原生桥接，降级走浏览器下载
+    function saveExportedData(base64Data, filename, mimeType) {
+        if (window.AndroidApp && typeof window.AndroidApp.saveBase64File === 'function') {
+            try {
+                window.AndroidApp.saveBase64File(base64Data, filename, mimeType);
+                return;
+            } catch(err) {
+                console.error('AndroidApp.saveBase64File failed:', err);
+            }
+        }
+
+        // Web / PWA 降级处理
+        try {
+            const byteCharacters = atob(base64Data);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            const blob = new Blob([byteArray], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => {
+                a.remove();
+                URL.revokeObjectURL(url);
+            }, 1000);
+            if (typeof showToast === 'function') {
+                showToast('💾', `已触发下载：${filename}`);
+            }
+        } catch(e) {
+            console.error('Web export failed:', e);
         }
     }
 
@@ -170,6 +221,83 @@
         el.addEventListener('touchstart', onPointerDown, { passive: false });
     }
 
+    // 生成注入沙盒内部的下载拦截器（同时支持 postMessage、window.parent 直调以及原生 AndroidApp）
+    function getSandboxBridgeScript() {
+        return `
+            <script>
+            (function() {
+                // 1. 继承父级 AndroidApp 原生桥接对象
+                try {
+                    if (window.parent && window.parent.AndroidApp) {
+                        window.AndroidApp = window.parent.AndroidApp;
+                    }
+                } catch(e){}
+
+                // 2. 深度拦截 <a> 标签的导出下载行为
+                function handleBlobExport(href, filename) {
+                    if (!href) return;
+                    fetch(href).then(res => res.blob()).then(blob => {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            const base64Data = e.target.result.split(',')[1];
+                            const mime = blob.type || 'application/octet-stream';
+                            
+                            // 方式 A: 直接调用原生 AndroidApp 桥接
+                            if (window.AndroidApp && typeof window.AndroidApp.saveBase64File === 'function') {
+                                window.AndroidApp.saveBase64File(base64Data, filename, mime);
+                                return;
+                            }
+                            
+                            // 方式 B: 调用父页面 AndroidApp
+                            try {
+                                if (window.parent && window.parent.AndroidApp && typeof window.parent.AndroidApp.saveBase64File === 'function') {
+                                    window.parent.AndroidApp.saveBase64File(base64Data, filename, mime);
+                                    return;
+                                }
+                            } catch(err){}
+
+                            // 方式 C: 跨域安全通道 postMessage
+                            try {
+                                window.parent.postMessage({
+                                    type: 'OPERIT_SANDBOX_EXPORT',
+                                    base64Data: base64Data,
+                                    filename: filename,
+                                    mimeType: mime
+                                }, '*');
+                            } catch(err){}
+                        };
+                        reader.readAsDataURL(blob);
+                    }).catch(err => {
+                        console.error('Intercept export failed:', err);
+                    });
+                }
+
+                // 劫持 HTMLElement.prototype.click
+                const origClick = HTMLAnchorElement.prototype.click;
+                HTMLAnchorElement.prototype.click = function() {
+                    const downloadAttr = this.getAttribute('download') || this.download;
+                    const href = this.href;
+                    if (downloadAttr || (href && (href.startsWith('blob:') || href.startsWith('data:')))) {
+                        const filename = downloadAttr || ('backup_' + Date.now() + '.json');
+                        handleBlobExport(href, filename);
+                        return;
+                    }
+                    return origClick.apply(this, arguments);
+                };
+
+                // 监听全局点击捕获
+                document.addEventListener('click', function(e) {
+                    const target = e.target.closest('a[download], a[href^="blob:"], a[href^="data:"]');
+                    if (target) {
+                        const filename = target.getAttribute('download') || target.download || ('backup_' + Date.now() + '.json');
+                        handleBlobExport(target.href, filename);
+                    }
+                }, true);
+            })();
+            <\/script>
+        `;
+    }
+
     /**
      * 运行/全屏预览
      * @param {Object} item - 资产对象，包含 rawText / rawBuffer / fileType 等
@@ -187,13 +315,21 @@
 
         try {
             const ext = (item.fileType || '').toLowerCase();
+            const bridgeScript = getSandboxBridgeScript();
 
             // 1. 单 HTML / TXT 文本运行
             if (ext === 'html' || ext === 'htm' || ext === 'txt') {
-                const htmlContent = item.rawText || (item.rawBuffer ? new TextDecoder('utf-8').decode(item.rawBuffer) : '');
+                let htmlContent = item.rawText || (item.rawBuffer ? new TextDecoder('utf-8').decode(item.rawBuffer) : '');
                 if (!htmlContent) {
                     showToast('⚠️', '未读取到可运行的 HTML 代码');
                     return;
+                }
+
+                // 注入下载导出拦截器
+                if (htmlContent.includes('<head>')) {
+                    htmlContent = htmlContent.replace('<head>', '<head>' + bridgeScript);
+                } else {
+                    htmlContent = bridgeScript + htmlContent;
                 }
 
                 const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
@@ -214,7 +350,6 @@
 
                 let buffer = item.rawBuffer;
                 if (!buffer && item.rawText) {
-                    // 尝试以 base64 或文本转 buffer
                     showToast('⚠️', 'ZIP 文件数据损坏');
                     return;
                 }
@@ -259,7 +394,7 @@
                     const bUrl = URL.createObjectURL(typedBlob);
                     currentPreviewBlobUrls.push(bUrl);
                     fileMap[path] = bUrl;
-                    // 也记录纯文件名
+                    
                     const simpleName = path.split('/').pop();
                     if (!fileMap[simpleName]) fileMap[simpleName] = bUrl;
                 }
@@ -273,6 +408,13 @@
                     const escaped = relPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
                     const regex = new RegExp(`(["'\\(=])(\\.\\/|\\/)?(${escaped})([?"'\\)])`, 'gi');
                     mainHtmlContent = mainHtmlContent.replace(regex, `$1${blobUrl}$4`);
+                }
+
+                // 注入下载导出拦截器
+                if (mainHtmlContent.includes('<head>')) {
+                    mainHtmlContent = mainHtmlContent.replace('<head>', '<head>' + bridgeScript);
+                } else {
+                    mainHtmlContent = bridgeScript + mainHtmlContent;
                 }
 
                 const entryBlob = new Blob([mainHtmlContent], { type: 'text/html;charset=utf-8' });

@@ -1,4 +1,4 @@
-<!-- BUILD_VER_STAMP: 1787302277 -->
+<!-- BUILD_VER_STAMP: 1789462939 -->
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -103,6 +103,13 @@
                         <span>角色卡 (Cards)</span>
                     </div>
                     <span id="badge-cards" class="text-[10px] px-2 py-0.5 rounded-full bg-[#f8eeee] text-[#8c7173] font-mono">0</span>
+                </button>
+                <button onclick="openCharacterV2Modal(event)" id="tab-character_v2" class="tab-btn w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-[#785e60] hover:bg-[#fdf4f5] transition">
+                    <div class="flex items-center gap-2.5">
+                        <i data-lucide="sparkles" class="w-4 h-4 text-[#1a1a1a]"></i>
+                        <span class="font-bold text-[#1a1a1a]">角色卡v2</span>
+                    </div>
+                    <span id="badge-character_v2" class="text-[10px] px-2 py-0.5 rounded-full bg-[#1a1a1a] text-white font-mono shadow-sm">工坊</span>
                 </button>
 
                 <button onclick="switchTab('worldbooks', event)" id="tab-worldbooks" class="tab-btn w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-[#785e60] hover:bg-[#fdf4f5] transition">
@@ -920,5 +927,14 @@
         <iframe id="internalBrowserFrame" class="w-full h-full border-none flex-1 bg-white" src="about:blank" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
     </div>
 
+
+    <!-- 角色卡v2 (cunchu) 独立隔离全屏模态 -->
+    <div id="characterV2IframeContainer" class="fixed inset-0 z-[999] bg-[#000000] flex-col overflow-hidden" style="display: none;">
+        <div id="characterV2FloatingBackBtn" onclick="handleCharacterV2BackClick(event)" class="fixed z-[1000] bg-black/60 hover:bg-black/85 active:scale-90 backdrop-blur-md text-white/90 hover:text-white text-[11px] font-medium px-2.5 py-1 rounded-full shadow-lg border border-white/15 flex items-center gap-1 cursor-grab active:cursor-grabbing select-none transition-opacity opacity-75 hover:opacity-100" style="top: 14px; left: 14px; touch-action: none;">
+            <span class="text-xs">‹</span>
+            <span>返回</span>
+        </div>
+        <iframe id="characterV2Frame" src="about:blank" class="w-full h-full border-0 bg-transparent flex-1" allow="fullscreen; clipboard-read; clipboard-write"></iframe>
+    </div>
 </body>
 </html>
