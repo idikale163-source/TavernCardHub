@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tavern-hub-v' + Date.now();
+const CACHE_NAME = 'tavern-hub-v1787168888888';
 
 self.addEventListener('install', (event) => {
     self.skipWaiting();
