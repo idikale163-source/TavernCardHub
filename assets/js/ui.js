@@ -4321,7 +4321,7 @@ window.openCharacterV2Modal = function(e) {
     const frame = document.getElementById('characterV2Frame');
     if (container && frame) {
         if (frame.src === 'about:blank' || !frame.src || frame.src.endsWith('about:blank')) {
-            frame.src = 'https://character-v2.vercel.app/';
+            frame.src = 'https://character-v2-wenyuchu-s-projects.vercel.app/';
         }
         container.style.display = 'flex';
         initCharacterV2FloatingBtnDrag();

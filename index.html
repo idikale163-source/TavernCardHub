@@ -1,4 +1,4 @@
-<!-- BUILD_VER_STAMP: 1789462939 -->
+<!-- BUILD_VER_STAMP: 1789465658 -->
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -50,6 +50,31 @@
 #linksBuilderPanel .text-[#2563eb], #linksBuilderPanel .text-[#1e40af] { color:#9b6875 !important; }
 #linksBuilderPanel .bg-[#2563eb] { background:#c98294 !important; }
 </style>
+
+    <style id="rh-anti-blackbar-master">
+      html, body {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        background-color: #fdfbf7 !important;
+        -webkit-tap-highlight-color: transparent !important;
+      }
+      /* 强制消除 WebView 顶部状态栏与刘海留白 */
+      body {
+        padding-top: env(safe-area-inset-top, 0px) !important;
+        padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+      }
+      #characterV2IframeContainer {
+        position: fixed !important;
+        inset: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        z-index: 9999 !important;
+        background-color: #000000 !important;
+      }
+    </style>
+    
 </head>
 <body class="h-screen flex flex-col overflow-hidden bg-[#faf6f0]">
 
