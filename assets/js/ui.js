@@ -3854,7 +3854,7 @@ window.openEmojiNamerModal = function(e) {
     const frame = document.getElementById('emojiNamerFrame');
     if (container && frame) {
         if (frame.src === 'about:blank' || !frame.src) {
-            frame.src = 'tools/character-v2/index.html';
+            frame.src = window.location.origin + '/tools/character-v2/index.html?t=' + Date.now();
         }
         container.style.display = 'flex';
         initNamerFloatingBtnDrag();
@@ -3878,7 +3878,7 @@ window.openBubbleGenModal = function(e) {
     const frame = document.getElementById('bubbleGenFrame');
     if (container && frame) {
         if (frame.src === 'about:blank' || !frame.src) {
-            frame.src = 'tools/character-v2/index.html';
+            frame.src = window.location.origin + '/tools/character-v2/index.html?t=' + Date.now();
         }
         container.style.display = 'flex';
         initBubbleGenFloatingBtnDrag();
@@ -3902,7 +3902,7 @@ window.openTuchuangModal = function(e) {
     const frame = document.getElementById('tuchuangFrame');
     if (container && frame) {
         if (frame.src === 'about:blank' || !frame.src) {
-            frame.src = 'tools/character-v2/index.html';
+            frame.src = window.location.origin + '/tools/character-v2/index.html?t=' + Date.now();
         }
         container.style.display = 'flex';
         initTuchuangFloatingBtnDrag();
@@ -4321,7 +4321,7 @@ window.openCharacterV2Modal = function(e) {
     const frame = document.getElementById('characterV2Frame');
     if (container && frame) {
         if (frame.src === 'about:blank' || !frame.src || frame.src.endsWith('about:blank')) {
-            frame.src = 'tools/character-v2/index.html';
+            frame.src = window.location.origin + '/tools/character-v2/index.html?t=' + Date.now();
         }
         container.style.display = 'flex';
         initCharacterV2FloatingBtnDrag();
