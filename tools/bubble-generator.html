@@ -746,19 +746,17 @@ div[class*="rounded-2xl"][class*="shadow-sm"][class*="border"][class*="w-fit"][c
   overflow: visible !important;
   background: transparent !important;
   background-color: transparent !important;
-  background-image: none !important;
   border-radius: 0 !important;
   box-shadow: none !important;
   border-style: solid !important;
   border-color: transparent !important;
   border-image-repeat: stretch !important;
-  border-image-width: ${z.patternScale} !important;
   box-sizing: border-box !important;
 }
 
-/* 6.2 居左 (AI 对方的已收款/退回回执) -> 匹配 AI 转账卡素材 */
-.sully-chat-messages > div:not([class*="justify-end"]) div[class*="rounded-2xl"][class*="shadow-sm"][class*="border"][class*="w-fit"],
-.sully-bubble-ai div[class*="rounded-2xl"][class*="shadow-sm"][class*="w-fit"] {
+/* 6.2 默认命中 (居左 / AI 对方) -> 复用 AI 转账卡素材 */
+div[class*="rounded-2xl"][class*="shadow-sm"][class*="border"][class*="w-fit"][class*="from-emerald-50"],
+div[class*="rounded-2xl"][class*="shadow-sm"][class*="border"][class*="w-fit"][class*="from-slate-50"] {
   border-width: ${G[0]}px ${G[1]}px ${G[2]}px ${G[3]}px !important;
   border-image-source: url('${et}') !important;
   border-image-slice: ${V[0]} ${V[1]} ${V[2]} ${V[3]} fill !important;
@@ -766,9 +764,15 @@ div[class*="rounded-2xl"][class*="shadow-sm"][class*="border"][class*="w-fit"][c
   padding: 3px 10px 4px 10px !important;
 }
 
-/* 6.3 居右 (我方用户的已收款/退回回执) -> 匹配 用户转账卡素材 */
-.sully-chat-messages > div[class*="justify-end"] div[class*="rounded-2xl"][class*="shadow-sm"][class*="border"][class*="w-fit"],
-.sully-bubble-user div[class*="rounded-2xl"][class*="shadow-sm"][class*="w-fit"] {
+/* 6.3 居右 (我方用户) -> 复用 用户转账卡素材 (高权重覆盖 6.2) */
+div[class*="justify-end"] div[class*="rounded-2xl"][class*="shadow-sm"][class*="border"][class*="w-fit"][class*="from-emerald-50"],
+div[class*="justify-end"] div[class*="rounded-2xl"][class*="shadow-sm"][class*="border"][class*="w-fit"][class*="from-slate-50"],
+div[class*="flex-row-reverse"] div[class*="rounded-2xl"][class*="shadow-sm"][class*="border"][class*="w-fit"][class*="from-emerald-50"],
+div[class*="flex-row-reverse"] div[class*="rounded-2xl"][class*="shadow-sm"][class*="border"][class*="w-fit"][class*="from-slate-50"],
+div[class*="self-end"] div[class*="rounded-2xl"][class*="shadow-sm"][class*="border"][class*="w-fit"][class*="from-emerald-50"],
+div[class*="self-end"] div[class*="rounded-2xl"][class*="shadow-sm"][class*="border"][class*="w-fit"][class*="from-slate-50"],
+div[class*="ml-auto"] div[class*="rounded-2xl"][class*="shadow-sm"][class*="border"][class*="w-fit"][class*="from-emerald-50"],
+div[class*="ml-auto"] div[class*="rounded-2xl"][class*="shadow-sm"][class*="border"][class*="w-fit"][class*="from-slate-50"] {
   border-width: ${j[0]}px ${j[1]}px ${j[2]}px ${j[3]}px !important;
   border-image-source: url('${bt}') !important;
   border-image-slice: ${P[0]} ${P[1]} ${P[2]} ${P[3]} fill !important;
@@ -776,18 +780,8 @@ div[class*="rounded-2xl"][class*="shadow-sm"][class*="border"][class*="w-fit"][c
   padding: 3px 10px 4px 10px !important;
 }
 
-/* 6.4 回执内文字颜色：跟随对应端转账卡文字色 */
-.sully-chat-messages > div:not([class*="justify-end"]) div[class*="rounded-2xl"][class*="shadow-sm"][class*="border"][class*="w-fit"] *,
-.sully-bubble-ai div[class*="rounded-2xl"][class*="shadow-sm"][class*="w-fit"] * {
-  color: ${v} !important;
-  -webkit-text-fill-color: ${v} !important;
-  text-shadow: none !important;
-}
-
-.sully-chat-messages > div[class*="justify-end"] div[class*="rounded-2xl"][class*="shadow-sm"][class*="border"][class*="w-fit"] *,
-.sully-bubble-user div[class*="rounded-2xl"][class*="shadow-sm"][class*="w-fit"] * {
-  color: ${k} !important;
-  -webkit-text-fill-color: ${k} !important;
+/* 6.4 回执内文字：跟随对应端转账卡文字色 */
+div[class*="rounded-2xl"][class*="shadow-sm"][class*="border"][class*="w-fit"] * {
   text-shadow: none !important;
 }
 
