@@ -4099,7 +4099,9 @@ async function exportAssetsAsZip() {
         }
 
         const zip = new JSZip();
-        const manifest = [];
+        // === 大盘优化：不再聚合 manifest 数组（数百 MB），改为逐条序列化直接写入 ZIP ===
+        // 每条资产经 JSON.stringify 后立即 zip.file()，随后释放引用，内存峰值 = 单条大小。
+        const assetIds = [];   // 仅记录 id，用于生成轻量索引
         for (let i = 0; i < assets.length; i++) {
             const asset = assets[i];
             if (i % 10 === 0 || i === assets.length - 1) {
@@ -4163,27 +4165,21 @@ async function exportAssetsAsZip() {
                     }
                 }
             } catch(e) { console.warn('[EXPORT] rawBuffer 序列化跳过:', e); }
-            manifest.push(entry);
+            // 立即落盘到 ZIP，避免在内存里堆积整个 manifest
+            const safeId = String(entry.id || ('asset_' + i)).replace(/[^A-Za-z0-9_-]/g, '_');
+            const entryStr = JSON.stringify(entry);
+            zip.file('assets/' + safeId + '.json', entryStr);
+            assetIds.push(safeId);
+            // 每 50 条让出主线程，避免长任务阻塞
+            if (i % 50 === 0) await new Promise(r => setTimeout(r, 0));
         }
 
-        // === 备份清单 ===
-        // 注意：大数据量时 manifest 可能达数百 MB，若同时写两份(manifest + _manifest)
-        // 会直接把内存打爆。因此策略改为：
-        //   小数据（<20MB）→ 同时写 manifest.json 与 _manifest.json，双兼容
-        //   大数据          → 写一份 manifest.json + 逐条 assets/<id>.json，靠分片控制内存
-        const manifestStr = JSON.stringify(manifest, null, 2);
-        const heavy = manifestStr.length > 20 * 1024 * 1024;
-        zip.file('manifest.json', manifestStr);
-        if (!heavy) {
-            zip.file('_manifest.json', manifestStr);
-        }
-        // 逐条资产分片：新版导入优先读 manifest.json，读不到则回退此目录
-        for (let i = 0; i < manifest.length; i++) {
-            const e = manifest[i];
-            const safeId = String(e.id || ('asset_' + i)).replace(/[^A-Za-z0-9_-]/g, '_');
-            zip.file('assets/' + safeId + '.json', JSON.stringify(e));
-        }
-        // 释放大字符串引用，便于 GC（大数据量下很关键）
+        // === 轻量索引 ===
+        // 资产正文已逐条写入 assets/<id>.json，此处只生成一个极小的文件清单，
+        // 体积与资产数量成正比(每条约 40 字节)，不再产生数百 MB 的巨型字符串。
+        const indexJson = JSON.stringify({ version: 3, count: assetIds.length, assets: assetIds });
+        zip.file('manifest.json', indexJson);
+        zip.file('_manifest.json', indexJson);
         try {
             const extraData = {};
             const SKIP = /^(TAVERN_TMP_|debug_|__)/;
@@ -4264,6 +4260,108 @@ async function exportAssetsAsZip() {
         // 必然触发 WebView OOM 假死。改为 streamFiles 流式生成 + 逐块经原生桥落盘。
         const hasNativeBridge = !!(window.AndroidApp && typeof window.AndroidApp.writeChunk === 'function');
         const canStream = typeof zip.generateInternalStream === 'function';
+
+        // === 优先级 1：原生 ZipOutputStream（内存恒定，支持任意大小）===
+        if (window.AndroidApp && typeof window.AndroidApp.zipStart === 'function') {
+            try {
+                showToast('⌛', '正在用原生引擎流式打包...');
+                const okStart = window.AndroidApp.zipStart(filename);
+                if (!okStart) throw new Error('zipStart 返回失败');
+
+                // 逐条写入：每条经 JSON.stringify -> base64 -> Java 落盘
+                // 内存峰值 = 单条大小，不再随总量增长
+                for (let i = 0; i < assets.length; i++) {
+                    const e = assets[i];
+                    const safeId = String(e.id || ('asset_' + i)).replace(/[^A-Za-z0-9_-]/g, '_');
+                    const jsonStr = JSON.stringify(e);
+                    const b64 = btoa(unescape(encodeURIComponent(jsonStr)));
+                    const ok = window.AndroidApp.zipAddFile('assets/' + safeId + '.json', b64);
+                    if (!ok) throw new Error('写入 ' + safeId + ' 失败');
+                    if (i % 20 === 0 || i === assets.length - 1) {
+                        showToast('⌛', `原生打包资产 (${i + 1}/${assets.length})...`);
+                        await new Promise(r => setTimeout(r, 0));
+                    }
+                }
+
+                // 索引与配置
+                const indexJson = JSON.stringify({ version: 3, count: assets.length, assets: assets.map(e => String(e.id || '').replace(/[^A-Za-z0-9_-]/g, '_')) });
+                window.AndroidApp.zipAddFile('manifest.json', btoa(unescape(encodeURIComponent(indexJson))));
+                window.AndroidApp.zipAddFile('_manifest.json', btoa(unescape(encodeURIComponent(indexJson))));
+
+                try {
+                    const extraData = {};
+                    const SKIP = /^(TAVERN_TMP_|debug_|__)/;
+                    for (let i = 0; i < localStorage.length; i++) {
+                        const k = localStorage.key(i);
+                        if (!k || SKIP.test(k)) continue;
+                        const val = localStorage.getItem(k);
+                        if (val !== null && val.length < 5 * 1024 * 1024) extraData[k] = val;
+                    }
+                    window.AndroidApp.zipAddFile('app_extra_config.json', btoa(unescape(encodeURIComponent(JSON.stringify(extraData)))));
+                    const customFolders = {};
+                    for (let i = 0; i < localStorage.length; i++) {
+                        const k = localStorage.key(i);
+                        if (k && k.indexOf('TAVERN_CUSTOM_FOLDERS_') === 0) {
+                            try { customFolders[k.replace('TAVERN_CUSTOM_FOLDERS_', '')] = JSON.parse(localStorage.getItem(k)); } catch(e) {}
+                        }
+                    }
+                    window.AndroidApp.zipAddFile('_meta.json', btoa(unescape(encodeURIComponent(JSON.stringify({ customFolders: customFolders, exportedAt: Date.now(), version: 3 })))));
+                } catch(e) { console.warn('[EXPORT] 配置写入跳过:', e); }
+
+                // 额外 IndexedDB（v2 工坊 / 字体）
+                try {
+                    const extraDbs = ['keyval-store', 'FontPreviewBox'];
+                    const dbDump = {};
+                    for (const dbName of extraDbs) {
+                        const dump = await new Promise((resolve) => {
+                            let req;
+                            try { req = indexedDB.open(dbName); } catch(e) { resolve(null); return; }
+                            req.onsuccess = () => {
+                                const db = req.result;
+                                const storeNames = [...db.objectStoreNames];
+                                if (!storeNames.length) { db.close(); resolve(null); return; }
+                                const result = { name: dbName, version: db.version, stores: {} };
+                                let pending = storeNames.length;
+                                storeNames.forEach((sn) => {
+                                    try {
+                                        const tx = db.transaction(sn, 'readonly');
+                                        const st = tx.objectStore(sn);
+                                        const all = st.getAll();
+                                        const keyReq = st.getAllKeys();
+                                        all.onsuccess = () => {
+                                            keyReq.onsuccess = () => {
+                                                result.stores[sn] = { keys: keyReq.result, values: all.result };
+                                                if (--pending === 0) { db.close(); resolve(result); }
+                                            };
+                                            keyReq.onerror = () => { if (--pending === 0) { db.close(); resolve(result); } };
+                                        };
+                                        all.onerror = () => { if (--pending === 0) { db.close(); resolve(result); } };
+                                    } catch(e) { if (--pending === 0) { db.close(); resolve(result); } }
+                                });
+                            };
+                            req.onerror = () => resolve(null);
+                            req.onblocked = () => resolve(null);
+                            req.onupgradeneeded = () => { try { req.result.close(); } catch(e) {} resolve(null); };
+                        });
+                        if (dump && dump.stores && Object.keys(dump.stores).length) {
+                            const hasAny = Object.values(dump.stores).some(x => x && x.values && x.values.length);
+                            if (hasAny) dbDump[dbName] = dump;
+                        }
+                    }
+                    if (Object.keys(dbDump).length) {
+                        window.AndroidApp.zipAddFile('extra_indexeddb.json', btoa(unescape(encodeURIComponent(JSON.stringify(dbDump)))));
+                    }
+                } catch(e) { console.warn('[EXPORT] 额外 IndexedDB 跳过:', e); }
+
+                showToast('⌛', '正在生成 ZIP 并写入 Download...');
+                window.AndroidApp.zipFinish();
+                return;
+            } catch(err) {
+                console.error('[EXPORT] 原生模式失败，回退 JSZip:', err);
+                showToast('⚠️', '原生打包失败，回退兼容模式...');
+                try { if (window.AndroidApp.zipClose) window.AndroidApp.zipClose(); } catch(e) {}
+            }
+        }
 
         if (hasNativeBridge && canStream) {
             showToast('⌛', '正在流式打包（边压缩边写盘）...');
@@ -4413,22 +4511,53 @@ async function importAssetsFromZip() {
             }
             showToast('⌛', '正在解压导入...');
             const zip = await JSZip.loadAsync(file);
-            // === 兼容读取：_manifest.json（旧）/ manifest.json（新）===
-            let entries = null;
+            // === 兼容读取三种格式 ===
+            //  v1: manifest.json 是「资产对象数组」（数百 MB 巨型文件）
+            //  v3: manifest.json 是「id 索引」，正文在 assets/<id>.json（流式导出）
+            //  无清单: 直接扫描 assets/*.json
+            let entries = [];
             const mf = zip.file('_manifest.json') || zip.file('manifest.json');
+            let indexList = null;
             if (mf) {
-                const parsed = JSON.parse(await mf.async('string'));
-                if (Array.isArray(parsed)) entries = parsed;
-                else if (parsed && Array.isArray(parsed.assets)) entries = parsed.assets;
-                else entries = [];
+                try {
+                    const parsed = JSON.parse(await mf.async('string'));
+                    if (Array.isArray(parsed)) {
+                        // v1：直接就是资产数组
+                        if (parsed.length && parsed[0] && typeof parsed[0] === 'object' && (parsed[0].id || parsed[0].name)) {
+                            entries = parsed;
+                        } else {
+                            indexList = parsed.map(x => String(x).replace(/[^A-Za-z0-9_-]/g, '_'));
+                        }
+                    } else if (parsed && Array.isArray(parsed.assets)) {
+                        // v3：{version, count, assets:[id,...]}
+                        const first = parsed.assets[0];
+                        if (first && typeof first === 'object') entries = parsed.assets;
+                        else indexList = parsed.assets.map(x => String(x).replace(/[^A-Za-z0-9_-]/g, '_'));
+                    }
+                } catch(e) { console.warn('[IMPORT] 清单解析失败，回退扫描:', e); }
             }
-            // 回退：assets/*.json 分片
+            // 索引模式：按 id 读取 assets/<id>.json
+            if ((!entries || !entries.length) && indexList && indexList.length) {
+                let miss = 0;
+                for (let i = 0; i < indexList.length; i++) {
+                    const f = zip.file('assets/' + indexList[i] + '.json');
+                    if (!f) { miss++; continue; }
+                    try { entries.push(JSON.parse(await f.async('string'))); } catch(e) { miss++; }
+                    if (i % 100 === 0) {
+                        showToast('⌛', `读取资产 ${i + 1}/${indexList.length}...`);
+                        await new Promise(r => setTimeout(r, 0));
+                    }
+                }
+                if (miss) console.warn('[IMPORT] 有 ' + miss + ' 条索引未找到对应文件');
+            }
+            // 兜底：直接扫描 assets/*.json
             if (!entries || !entries.length) {
                 const assetFiles = Object.keys(zip.files).filter(f => f.startsWith('assets/') && f.endsWith('.json'));
-                if (assetFiles.length) {
-                    entries = [];
-                    for (let i = 0; i < assetFiles.length; i++) {
-                        try { entries.push(JSON.parse(await zip.files[assetFiles[i]].async('string'))); } catch(e) {}
+                for (let i = 0; i < assetFiles.length; i++) {
+                    try { entries.push(JSON.parse(await zip.files[assetFiles[i]].async('string'))); } catch(e) {}
+                    if (i % 100 === 0) {
+                        showToast('⌛', `扫描资产 ${i + 1}/${assetFiles.length}...`);
+                        await new Promise(r => setTimeout(r, 0));
                     }
                 }
             }
