@@ -4194,6 +4194,58 @@ async function exportAssetsAsZip() {
                 if (val !== null && val.length < 5 * 1024 * 1024) extraData[k] = val;
             }
             zip.file('app_extra_config.json', JSON.stringify(extraData, null, 2));
+
+            // === 导出其他 IndexedDB（角色卡v2 工坊 keyval-store / 字体预览箱）===
+            // v2 工坊位于同源 about:blank iframe，其 idb-keyval 数据就存在本页 IndexedDB 环境。
+            try {
+                const extraDbs = ['keyval-store', 'FontPreviewBox'];
+                const dbDump = {};
+                for (const dbName of extraDbs) {
+                    const dump = await new Promise((resolve) => {
+                        let req;
+                        try { req = indexedDB.open(dbName); } catch(e) { resolve(null); return; }
+                        req.onsuccess = () => {
+                            const db = req.result;
+                            const storeNames = [...db.objectStoreNames];
+                            if (!storeNames.length) { db.close(); resolve({ name: dbName, version: db.version, stores: {} }); return; }
+                            const result = { name: dbName, version: db.version, stores: {} };
+                            let pending = storeNames.length;
+                            storeNames.forEach((sn) => {
+                                try {
+                                    const tx = db.transaction(sn, 'readonly');
+                                    const st = tx.objectStore(sn);
+                                    const all = st.getAll();
+                                    const keyReq = st.getAllKeys();
+                                    all.onsuccess = () => {
+                                        keyReq.onsuccess = () => {
+                                            result.stores[sn] = { keys: keyReq.result, values: all.result };
+                                            if (--pending === 0) { db.close(); resolve(result); }
+                                        };
+                                        keyReq.onerror = () => { if (--pending === 0) { db.close(); resolve(result); } };
+                                    };
+                                    all.onerror = () => { if (--pending === 0) { db.close(); resolve(result); } };
+                                } catch(e) {
+                                    if (--pending === 0) { db.close(); resolve(result); }
+                                }
+                            });
+                        };
+                        req.onerror = () => resolve(null);
+                        req.onblocked = () => resolve(null);
+                        // 不触发 onupgradeneeded 建库；若库不存在则直接放弃
+                        req.onupgradeneeded = () => { try { req.result.close(); } catch(e) {} resolve(null); };
+                    });
+                    if (dump && dump.stores && Object.keys(dump.stores).length) {
+                        // 只保留有数据的库
+                        const hasAny = Object.values(dump.stores).some(x => x && x.values && x.values.length);
+                        if (hasAny) dbDump[dbName] = dump;
+                    }
+                }
+                if (Object.keys(dbDump).length) {
+                    zip.file('extra_indexeddb.json', JSON.stringify(dbDump));
+                    console.log('[EXPORT] 附带 IndexedDB:', Object.keys(dbDump).join(', '));
+                }
+            } catch(e) { console.warn('[EXPORT] 额外 IndexedDB 导出跳过:', e); }
+
             const customFolders = {};
             for (let i = 0; i < localStorage.length; i++) {
                 const k = localStorage.key(i);
@@ -4407,6 +4459,65 @@ async function importAssetsFromZip() {
                     if (restored) showToast('ℹ️', `已恢复 ${restored} 项配置`);
                 } catch(e) { console.warn('[IMPORT] 配置恢复跳过:', e); }
             }
+            // === 恢复其他 IndexedDB（角色卡v2 工坊 / 字体预览箱）===
+            const extraDbFile = zip.file('extra_indexeddb.json');
+            if (extraDbFile) {
+                try {
+                    const dbDump = JSON.parse(await extraDbFile.async('string'));
+                    let restoredDbs = [];
+                    for (const dbName in dbDump) {
+                        const info = dbDump[dbName];
+                        if (!info || !info.stores) continue;
+                        const storeEntries = Object.entries(info.stores).filter(([sn, v]) => v && v.values && v.values.length);
+                        if (!storeEntries.length) continue;
+                        await new Promise((resolve) => {
+                            const req = indexedDB.open(dbName, info.version || undefined);
+                            req.onupgradeneeded = () => {
+                                const db = req.result;
+                                storeEntries.forEach(([sn]) => {
+                                    if (!db.objectStoreNames.contains(sn)) db.createObjectStore(sn);
+                                });
+                            };
+                            req.onsuccess = () => {
+                                const db = req.result;
+                                const needCreate = storeEntries.filter(([sn]) => !db.objectStoreNames.contains(sn));
+                                if (needCreate.length) {
+                                    // 需要升级版本才能建表
+                                    const newVer = db.version + 1;
+                                    db.close();
+                                    const up = indexedDB.open(dbName, newVer);
+                                    up.onupgradeneeded = () => {
+                                        const d2 = up.result;
+                                        needCreate.forEach(([sn]) => { if (!d2.objectStoreNames.contains(sn)) d2.createObjectStore(sn); });
+                                    };
+                                    up.onsuccess = () => { writeStores(up.result, storeEntries, resolve); };
+                                    up.onerror = () => resolve();
+                                } else {
+                                    writeStores(db, storeEntries, resolve);
+                                }
+                            };
+                            req.onerror = () => resolve();
+                        });
+                        restoredDbs.push(dbName);
+                    }
+                    function writeStores(db, storeEntries, done) {
+                        try {
+                            const tx = db.transaction(storeEntries.map(([sn]) => sn), 'readwrite');
+                            storeEntries.forEach(([sn, v]) => {
+                                const st = tx.objectStore(sn);
+                                (v.keys || []).forEach((k, idx) => {
+                                    try { st.put(v.values[idx], k); } catch(e) {}
+                                });
+                            });
+                            tx.oncomplete = () => { db.close(); done(); };
+                            tx.onerror = () => { db.close(); done(); };
+                            tx.onabort = () => { db.close(); done(); };
+                        } catch(e) { try { db.close(); } catch(_) {} done(); }
+                    }
+                    if (restoredDbs.length) showToast('ℹ️', `已恢复 ${restoredDbs.length} 个扩展数据库`);
+                } catch(e) { console.warn('[IMPORT] 扩展 IndexedDB 恢复跳过:', e); }
+            }
+
             const total = entries.length;
             let imported = 0;
             for (let i = 0; i < total; i++) {
