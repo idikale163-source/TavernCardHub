@@ -3854,7 +3854,7 @@ window.openEmojiNamerModal = function(e) {
     const frame = document.getElementById('emojiNamerFrame');
     if (container && frame) {
         if (frame.src === 'about:blank' || !frame.src) {
-            frame.src = window.location.origin + '/tools/character-v2/index.html?t=' + Date.now();
+            frame.src = 'tools/emoji-namer.html';
         }
         container.style.display = 'flex';
         initNamerFloatingBtnDrag();
@@ -3878,7 +3878,7 @@ window.openBubbleGenModal = function(e) {
     const frame = document.getElementById('bubbleGenFrame');
     if (container && frame) {
         if (frame.src === 'about:blank' || !frame.src) {
-            frame.src = window.location.origin + '/tools/character-v2/index.html?t=' + Date.now();
+            frame.src = 'tools/bubble-generator.html';
         }
         container.style.display = 'flex';
         initBubbleGenFloatingBtnDrag();
@@ -3902,7 +3902,7 @@ window.openTuchuangModal = function(e) {
     const frame = document.getElementById('tuchuangFrame');
     if (container && frame) {
         if (frame.src === 'about:blank' || !frame.src) {
-            frame.src = window.location.origin + '/tools/character-v2/index.html?t=' + Date.now();
+            frame.src = 'tools/tuchuang.html';
         }
         container.style.display = 'flex';
         initTuchuangFloatingBtnDrag();
@@ -4086,26 +4086,24 @@ window.renderGalleryDetailTags = function() {
 /* ================= ZIP 导出与导入 ================= */
 async function exportAssetsAsZip() {
     try {
-        console.log('[EXPORT] 开始导出流程...');
+        console.log('[EXPORT] 开始执行流式分片导出...');
         if (typeof JSZip === 'undefined') {
-            console.error('[EXPORT] JSZip 未定义');
-            showToast('⚠️', 'JSZip 库未加载，请检查网络');
+            showToast('❌', 'JSZip 压缩组件未加载！');
             return;
         }
         showToast('⌛', '正在读取本地数据...');
         const assets = await getAllAssets();
-        console.log('[EXPORT] 获取到资产数量:', assets.length);
-        if (!assets.length) {
-            showToast('⚠️', '没有资产可导出');
+        if (!assets || !assets.length) {
+            showToast('⚠️', '本地没有任何资产可导出！');
             return;
         }
+
         const zip = new JSZip();
         const manifest = [];
         for (let i = 0; i < assets.length; i++) {
             const asset = assets[i];
-            if (i % 20 === 0 || i === assets.length - 1) {
-                showToast('⌛', `正在处理数据 (${i + 1}/${assets.length})...`);
-                console.log(`[EXPORT] 处理资产 [${i + 1}/${assets.length}]: ${asset.name}`);
+            if (i % 10 === 0 || i === assets.length - 1) {
+                showToast('⌛', `打包资产 (${i + 1}/${assets.length})...`);
             }
             const entry = {
                 id: asset.id,
@@ -4120,98 +4118,228 @@ async function exportAssetsAsZip() {
                 cardData: asset.cardData || null,
                 createdAt: asset.createdAt
             };
-            if (asset.cover instanceof Blob) {
-                try {
-                    const dataUrl = await new Promise((resolve, reject) => {
-                        const reader = new FileReader();
-                        reader.onload = () => resolve(reader.result);
-                        reader.onerror = reject;
-                        reader.readAsDataURL(asset.cover);
-                    });
-                    entry.cover_base64 = dataUrl;
-                } catch(e) {
-                    console.warn(`[EXPORT] 封面转 Base64 失败 (id: ${asset.id}):`, e);
-                }
-            }
-            if (asset.rawBuffer instanceof ArrayBuffer) {
-                try {
-                    const bytes = new Uint8Array(asset.rawBuffer);
-                    let binary = '';
-                    const len = bytes.byteLength;
-                    const chunk = 8192;
-                    for (let j = 0; j < len; j += chunk) {
-                        const sub = bytes.subarray(j, Math.min(j + chunk, len));
-                        binary += String.fromCharCode.apply(null, sub);
+            // === 修复：IndexedDB 取出的 cover/rawBuffer 可能是 Blob/ArrayBuffer/TypeArray/base64字符串 等多种形态 ===
+            try {
+                const cov = asset.cover;
+                if (cov) {
+                    if (typeof cov === 'string' && cov.indexOf('data:') === 0) {
+                        entry.cover_base64 = cov;
+                    } else if (cov instanceof Blob) {
+                        const dataUrl = await new Promise((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onload = () => resolve(reader.result);
+                            reader.onerror = reject;
+                            reader.readAsDataURL(cov);
+                        });
+                        entry.cover_base64 = dataUrl;
+                    } else if (cov instanceof ArrayBuffer || ArrayBuffer.isView(cov) || (cov && cov.buffer instanceof ArrayBuffer)) {
+                        const u8 = cov instanceof ArrayBuffer ? new Uint8Array(cov)
+                                 : (ArrayBuffer.isView(cov) ? new Uint8Array(cov.buffer, cov.byteOffset, cov.byteLength)
+                                                            : new Uint8Array(cov.buffer));
+                        entry.cover_base64 = getAssetImageUrl(cov) || '';
                     }
-                    entry.raw_buffer_base64 = btoa(binary);
-                } catch(e) {
-                    console.warn(`[EXPORT] 数据流转 Base64 失败 (id: ${asset.id}):`, e);
                 }
-            }
-            const safeName = (asset.name || 'untitled').replace(/[^a-zA-Z0-9_一-鿿]/g, '_').substring(0, 50);
-            zip.file(`assets/${i}_${safeName}.json`, JSON.stringify(entry));
-            manifest.push({ index: i, id: asset.id, name: asset.name, category: asset.category });
+            } catch(e) { console.warn('[EXPORT] cover 序列化跳过:', e); }
+            // === 修复：rawBuffer 兼容 ArrayBuffer / TypedArray / base64 字符串 ===
+            try {
+                const rb = asset.rawBuffer;
+                if (rb) {
+                    if (typeof rb === 'string') {
+                        entry.rawBuffer_base64 = rb;
+                    } else {
+                        let u8 = null;
+                        if (rb instanceof ArrayBuffer) u8 = new Uint8Array(rb);
+                        else if (ArrayBuffer.isView(rb)) u8 = new Uint8Array(rb.buffer, rb.byteOffset, rb.byteLength);
+                        else if (rb.buffer instanceof ArrayBuffer) u8 = new Uint8Array(rb.buffer);
+                        if (u8 && u8.byteLength) {
+                            let binary = '';
+                            const chunk = 8192;
+                            for (let j = 0; j < u8.length; j += chunk) {
+                                const sub = u8.subarray(j, Math.min(j + chunk, u8.length));
+                                binary += String.fromCharCode.apply(null, sub);
+                            }
+                            entry.rawBuffer_base64 = btoa(binary);
+                        }
+                    }
+                }
+            } catch(e) { console.warn('[EXPORT] rawBuffer 序列化跳过:', e); }
+            manifest.push(entry);
         }
 
-        const folderConfig = {};
-        ['cards', 'gallery', 'links', 'themes', 'fonts', 'apikeys', 'custom'].forEach(cat => {
-            const stored = localStorage.getItem('TAVERN_CUSTOM_FOLDERS_' + cat);
-            if (stored) folderConfig[cat] = JSON.parse(stored);
-        });
-        zip.file('_manifest.json', JSON.stringify({
-            version: 1,
-            exportedAt: Date.now(),
-            count: assets.length,
-            manifest: manifest,
-            customFolders: folderConfig
-        }, null, 2));
-
-        console.log('[EXPORT] 所有文件已装载，开始压缩打包 (zip.generateAsync)...');
-        showToast('⌛', '正在压缩打包生成 ZIP...');
-        
-        const blob = await zip.generateAsync({
-            type: 'blob',
-            compression: 'DEFLATE',
-            useWebWorkers: false
-        }, (metadata) => {
-            if (metadata.percent) {
-                showToast('⌛', `压缩进度: ${metadata.percent.toFixed(0)}%`);
-                console.log(`[EXPORT] 压缩进度: ${metadata.percent.toFixed(1)}%`);
+        // === 备份清单 ===
+        // 注意：大数据量时 manifest 可能达数百 MB，若同时写两份(manifest + _manifest)
+        // 会直接把内存打爆。因此策略改为：
+        //   小数据（<20MB）→ 同时写 manifest.json 与 _manifest.json，双兼容
+        //   大数据          → 写一份 manifest.json + 逐条 assets/<id>.json，靠分片控制内存
+        const manifestStr = JSON.stringify(manifest, null, 2);
+        const heavy = manifestStr.length > 20 * 1024 * 1024;
+        zip.file('manifest.json', manifestStr);
+        if (!heavy) {
+            zip.file('_manifest.json', manifestStr);
+        }
+        // 逐条资产分片：新版导入优先读 manifest.json，读不到则回退此目录
+        for (let i = 0; i < manifest.length; i++) {
+            const e = manifest[i];
+            const safeId = String(e.id || ('asset_' + i)).replace(/[^A-Za-z0-9_-]/g, '_');
+            zip.file('assets/' + safeId + '.json', JSON.stringify(e));
+        }
+        // 释放大字符串引用，便于 GC（大数据量下很关键）
+        try {
+            const extraData = {};
+            const SKIP = /^(TAVERN_TMP_|debug_|__)/;
+            for (let i = 0; i < localStorage.length; i++) {
+                const k = localStorage.key(i);
+                if (!k || SKIP.test(k)) continue;
+                const val = localStorage.getItem(k);
+                if (val !== null && val.length < 5 * 1024 * 1024) extraData[k] = val;
             }
-        });
+            zip.file('app_extra_config.json', JSON.stringify(extraData, null, 2));
+            const customFolders = {};
+            for (let i = 0; i < localStorage.length; i++) {
+                const k = localStorage.key(i);
+                if (k && k.indexOf('TAVERN_CUSTOM_FOLDERS_') === 0) {
+                    try { customFolders[k.replace('TAVERN_CUSTOM_FOLDERS_', '')] = JSON.parse(localStorage.getItem(k)); } catch(e) {}
+                }
+            }
+            zip.file('_meta.json', JSON.stringify({ customFolders: customFolders, exportedAt: Date.now(), version: 2 }, null, 2));
+        } catch(e) { console.warn('[EXPORT] 配置导出异常:', e); }
 
-        console.log('[EXPORT] 压缩完成，文件大小:', (blob.size / 1024 / 1024).toFixed(2), 'MB');
         const ts = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
         const filename = `ResourceHub_Backup_${ts}.zip`;
 
-        if (window.AndroidApp && typeof window.AndroidApp.saveBase64File === 'function') {
-            console.log('[EXPORT] 检测到 AndroidApp 桥接，准备调用 saveBase64File');
-            showToast('⌛', '正在保存到手机存储...');
-            const reader = new FileReader();
-            reader.onloadend = function() {
-                try {
-                    const base64 = reader.result.split(',')[1];
-                    window.AndroidApp.saveBase64File(base64, filename, 'application/zip');
-                    showToast('🎉', `已导出 ${assets.length} 个资产 (${(blob.size / 1024 / 1024).toFixed(1)}MB) 到 Download`);
-                } catch(e) {
-                    console.error('[EXPORT] Java 桥接保存抛错:', e);
-                    showToast('❌', `保存失败: ${e.message || e}`);
-                }
-            };
-            reader.readAsDataURL(blob);
-        } else {
-            console.log('[EXPORT] 浏览器环境，触发 a.click 下载');
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            setTimeout(() => URL.revokeObjectURL(a.href), 10000);
-            showToast('🎉', `已导出 ${assets.length} 个资产 (${(blob.size / 1024 / 1024).toFixed(1)}MB)`);
+        // === 关键：APK/WebView 环境下不再用 generateAsync({type:'blob'}) ===
+        // 该方式会把整个 ZIP 在内存中拼装完成，数百 MB 数据 + DEFLATE 压缩峰值可达 1GB+，
+        // 必然触发 WebView OOM 假死。改为 streamFiles 流式生成 + 逐块经原生桥落盘。
+        const hasNativeBridge = !!(window.AndroidApp && typeof window.AndroidApp.writeChunk === 'function');
+        const canStream = typeof zip.generateInternalStream === 'function';
+
+        if (hasNativeBridge && canStream) {
+            showToast('⌛', '正在流式打包（边压缩边写盘）...');
+            const stream = zip.generateInternalStream({
+                type: 'uint8array',
+                compression: 'STORE',          // 不再 DEFLATE：省内存、防 OOM、速度极快（磁盘足够）
+                streamFiles: true
+            });
+            let sendBuf = new Uint8Array(0);   // 聚合到 256KB 再通过桥发送
+            let chunkIndex = 0;
+            const SEND_SIZE = 256 * 1024;
+            let lastError = null;
+
+            await new Promise((resolve) => {
+                stream.on('data', (data, meta) => {
+                    // 累积数据，攒够 SEND_SIZE 再发一包
+                    const merged = new Uint8Array(sendBuf.length + data.length);
+                    merged.set(sendBuf, 0);
+                    merged.set(data, sendBuf.length);
+                    sendBuf = merged;
+                    while (sendBuf.length >= SEND_SIZE) {
+                        const sub = sendBuf.subarray(0, SEND_SIZE);
+                        let binary = '';
+                        for (let j = 0; j < sub.length; j += 8192) {
+                            binary += String.fromCharCode.apply(null, sub.subarray(j, Math.min(j + 8192, sub.length)));
+                        }
+                        const ok = window.AndroidApp.writeChunk(btoa(binary), chunkIndex === 0, false, filename);
+                        if (!ok) { lastError = '分片写入失败'; break; }
+                        chunkIndex++;
+                        sendBuf = sendBuf.subarray(SEND_SIZE).slice();
+                    }
+                    if (meta && meta.percent) {
+                        window.__zipPct = meta.percent;
+                    }
+                });
+                stream.on('error', (err) => { lastError = err && err.message ? err.message : String(err); resolve(); });
+                stream.on('end', () => resolve());
+                stream.resume();
+            });
+
+            if (lastError) {
+                showToast('❌', `导出失败: ${lastError}`);
+                return;
+            }
+
+            // 冲刷尾部残余，并标记最后一片触发落盘
+            let tailBinary = '';
+            for (let j = 0; j < sendBuf.length; j += 8192) {
+                tailBinary += String.fromCharCode.apply(null, sendBuf.subarray(j, Math.min(j + 8192, sendBuf.length)));
+            }
+            const finalData = sendBuf.length ? btoa(tailBinary) : '';
+            window.AndroidApp.writeChunk(finalData, chunkIndex === 0, true, filename);
+            showToast('🎉', `总备份已成功写入：Download/${filename}`);
+            return;
         }
+
+        // ---- 非 APK 环境（普通浏览器）：仍走 Blob 下载 ----
+        showToast('⌛', '正在压缩打包成 ZIP...');
+        const blob = await zip.generateAsync({
+            type: 'blob',
+            compression: 'STORE',
+            streamFiles: true
+        }, (metadata) => {
+            if (metadata.percent) {
+                showToast('⌛', `压缩进度: ${metadata.percent.toFixed(0)}%`);
+            }
+        });
+
+        // === 大文件安全导出：Blob.slice() 逐块读取，绝不一次性载入整个 ZIP ===
+        // 旧实现在此调用 blob.arrayBuffer()，会把整个 ZIP(可达数百MB) 读入内存，
+        // 叠加 base64 膨胀后必然 OOM / 卡死。现改为 1MB 切片 + 256KB 逐包刷盘。
+        if (window.AndroidApp && typeof window.AndroidApp.writeChunk === 'function') {
+            const READ_SIZE = 1024 * 1024;        // 每次从 Blob 读 1MB
+            const SEND_SIZE = 256 * 1024;         // 每次通过桥传 256KB
+            const totalSize = blob.size;
+            let chunkIndex = 0;
+            let carry = new Uint8Array(0);
+            showToast('⌛', `开始流式导出 (${(totalSize / 1048576).toFixed(1)} MB)...`);
+            for (let offset = 0; offset < totalSize; offset += READ_SIZE) {
+                const sliceBlob = blob.slice(offset, Math.min(offset + READ_SIZE, totalSize));
+                const piece = new Uint8Array(await sliceBlob.arrayBuffer());   // 单次最多 1MB
+                let buf;
+                if (carry.length) {
+                    buf = new Uint8Array(carry.length + piece.length);
+                    buf.set(carry, 0);
+                    buf.set(piece, carry.length);
+                } else {
+                    buf = piece;
+                }
+                let pos = 0;
+                while (buf.length - pos >= SEND_SIZE) {
+                    const sub = buf.subarray(pos, pos + SEND_SIZE);
+                    let binary = '';
+                    for (let j = 0; j < sub.length; j += 8192) {
+                        binary += String.fromCharCode.apply(null, sub.subarray(j, Math.min(j + 8192, sub.length)));
+                    }
+                    const ok = window.AndroidApp.writeChunk(btoa(binary), chunkIndex === 0, false, filename);
+                    if (!ok) { showToast('❌', '分片写入失败，导出中止'); return; }
+                    chunkIndex++;
+                    pos += SEND_SIZE;
+                    if (chunkIndex % 8 === 0) {
+                        showToast('⌛', `流式刷盘: ${Math.round(Math.min(100, (offset + pos) / totalSize * 100))}%`);
+                        await new Promise(r => setTimeout(r, 0));   // 让出主线程，避免 WebView 假死
+                    }
+                }
+                carry = buf.subarray(pos).slice();
+            }
+            // 冲刷最后的残余字节（标记为最后一片，触发落盘）
+            let tailBinary = '';
+            for (let j = 0; j < carry.length; j += 8192) {
+                tailBinary += String.fromCharCode.apply(null, carry.subarray(j, Math.min(j + 8192, carry.length)));
+            }
+            window.AndroidApp.writeChunk(carry.length ? btoa(tailBinary) : '', chunkIndex === 0, true, filename);
+            showToast('🎉', `总备份已成功写入：Download/${filename}`);
+            return;
+        }
+
+        // Web 降级
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 5000);
+        showToast('🎉', `已通过下载链接导出：${filename}`);
     } catch (err) {
-        console.error('[EXPORT] 导出全流程异常:', err);
+        console.error('[EXPORT] 导出失败:', err);
         showToast('❌', `导出失败: ${err.message || err}`);
     }
 }
@@ -4233,22 +4361,56 @@ async function importAssetsFromZip() {
             }
             showToast('⌛', '正在解压导入...');
             const zip = await JSZip.loadAsync(file);
-            const manifestFile = zip.file('_manifest.json');
-            if (!manifestFile) {
+            // === 兼容读取：_manifest.json（旧）/ manifest.json（新）===
+            let entries = null;
+            const mf = zip.file('_manifest.json') || zip.file('manifest.json');
+            if (mf) {
+                const parsed = JSON.parse(await mf.async('string'));
+                if (Array.isArray(parsed)) entries = parsed;
+                else if (parsed && Array.isArray(parsed.assets)) entries = parsed.assets;
+                else entries = [];
+            }
+            // 回退：assets/*.json 分片
+            if (!entries || !entries.length) {
+                const assetFiles = Object.keys(zip.files).filter(f => f.startsWith('assets/') && f.endsWith('.json'));
+                if (assetFiles.length) {
+                    entries = [];
+                    for (let i = 0; i < assetFiles.length; i++) {
+                        try { entries.push(JSON.parse(await zip.files[assetFiles[i]].async('string'))); } catch(e) {}
+                    }
+                }
+            }
+            if (!entries || !entries.length) {
                 showToast('❌', '不是有效的 ResourceHub 备份文件');
                 return;
             }
-            const manifestData = JSON.parse(await manifestFile.async('string'));
-            // 恢复自定义文件夹
-            if (manifestData.customFolders) {
-                for (let cat in manifestData.customFolders) {
-                    localStorage.setItem('TAVERN_CUSTOM_FOLDERS_' + cat, JSON.stringify(manifestData.customFolders[cat]));
+            // 恢复自定义文件夹（新格式在 _meta.json，旧格式在清单里）
+            let metaObj = null;
+            const metaFile = zip.file('_meta.json');
+            if (metaFile) { try { metaObj = JSON.parse(await metaFile.async('string')); } catch(e) {} }
+            const cfSource = (metaObj && metaObj.customFolders) || (entries.customFolders) || null;
+            if (cfSource) {
+                for (let cat in cfSource) {
+                    localStorage.setItem('TAVERN_CUSTOM_FOLDERS_' + cat, JSON.stringify(cfSource[cat]));
                 }
+                if (typeof renderCustomFolders === 'function') { try { renderCustomFolders(); } catch(e) {} }
             }
+            // 恢复 localStorage 配置（图床/主题/预设等）
+            const cfgFile = zip.file('app_extra_config.json');
+            if (cfgFile) {
+                try {
+                    const cfg = JSON.parse(await cfgFile.async('string'));
+                    let restored = 0;
+                    for (const k in cfg) {
+                        if (typeof cfg[k] === 'string') { localStorage.setItem(k, cfg[k]); restored++; }
+                    }
+                    if (restored) showToast('ℹ️', `已恢复 ${restored} 项配置`);
+                } catch(e) { console.warn('[IMPORT] 配置恢复跳过:', e); }
+            }
+            const total = entries.length;
             let imported = 0;
-            const assetFiles = Object.keys(zip.files).filter(f => f.startsWith('assets/') && f.endsWith('.json'));
-            for (let i = 0; i < assetFiles.length; i++) {
-                const entry = JSON.parse(await zip.files[assetFiles[i]].async('string'));
+            for (let i = 0; i < total; i++) {
+                const entry = entries[i];
                 const asset = {
                     id: entry.id,
                     category: entry.category,
@@ -4273,10 +4435,11 @@ async function importAssetsFromZip() {
                         asset.cover = new Blob([nbytes], { type: mime });
                     } catch(e) { console.warn('cover restore failed', e); }
                 }
-                // 从 base64 还原 rawBuffer
-                if (entry.raw_buffer_base64) {
+                // 从 base64 还原 rawBuffer（兼容两种字段命名）
+                const rb64 = entry.rawBuffer_base64 || entry.raw_buffer_base64;
+                if (rb64) {
                     try {
-                        const bstr = atob(entry.raw_buffer_base64);
+                        const bstr = atob(String(rb64).replace(/^data:[^;]+;base64,/, ''));
                         let nbytes = new Uint8Array(bstr.length);
                         for (let j = 0; j < bstr.length; j++) nbytes[j] = bstr.charCodeAt(j);
                         asset.rawBuffer = nbytes.buffer;
@@ -4285,7 +4448,7 @@ async function importAssetsFromZip() {
                 await saveAsset(asset);
                 imported++;
                 if (imported % 20 === 0) {
-                    showToast('⌛', `已导入 ${imported}/${assetFiles.length}...`);
+                    showToast('⌛', `已导入 ${imported}/${total}...`);
                 }
             }
             allAssetsCache = null;
@@ -4320,8 +4483,15 @@ window.openCharacterV2Modal = function(e) {
     const container = document.getElementById('characterV2IframeContainer');
     const frame = document.getElementById('characterV2Frame');
     if (container && frame) {
-        if (frame.src === 'about:blank' || !frame.src || frame.src.endsWith('about:blank')) {
-            frame.src = window.location.origin + '/tools/character-v2/index.html?t=' + Date.now();
+        // 强制刷新并附带时间戳，杜绝任何历史缓存与空白挂死
+        // 注意：网页端 Vercel 开启了 cleanUrls，请求显式 index.html 会被 308 重定向，导致 iframe 白屏。
+        // 因此网页端统一使用目录形式（/tools/character-v2/?t=...），file:// 环境仍用 index.html。
+        const isFileProto = window.location.protocol === 'file:' || !window.location.origin || window.location.origin === 'null';
+        const targetUrl = isFileProto
+            ? ('tools/character-v2/index.html?t=' + Date.now())
+            : (window.location.origin + '/tools/character-v2/?t=' + Date.now());
+        if (frame.src !== targetUrl) {
+            frame.src = targetUrl;
         }
         container.style.display = 'flex';
         initCharacterV2FloatingBtnDrag();
