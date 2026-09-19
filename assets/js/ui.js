@@ -4087,7 +4087,8 @@ window.renderGalleryDetailTags = function() {
 // ==== 通用：枚举并导出所有额外 IndexedDB（v2 工坊 keyval-store 等） ====
 async function __dumpExtraIndexedDB() {
     const SKIP = { TavernCardHubDB: 1 };
-    const KNOWN = ['keyval-store', 'FontPreviewBox'];
+    // 已知库名（file:// 下 indexedDB.databases() 可能不可用，必须显式列出）
+    const KNOWN = ['keyval-store', 'FontPreviewBox', 'fontTab', 'fontTable', 'TavernCardHubDB_extra'];
     let names = [];
     try {
         if (indexedDB.databases) {
@@ -4097,15 +4098,18 @@ async function __dumpExtraIndexedDB() {
     } catch (e) {}
     KNOWN.forEach(function(n){ if (names.indexOf(n) < 0) names.push(n); });
     const out = {};
+    try { console.log("[DUMP] candidates=" + JSON.stringify(names)); } catch(e){}
     for (let i = 0; i < names.length; i++) {
         const nm = names[i];
         if (SKIP[nm]) continue;
         const dump = await __readOneIndexedDB(nm, false);
+        try { console.log("[DUMP] " + nm + " -> " + (dump ? ("stores=" + JSON.stringify(Object.keys(dump.stores))) : "null")); } catch(e){}
         if (dump && dump.stores && Object.keys(dump.stores).length) {
             const hasAny = Object.values(dump.stores).some(function(x){ return x && x.values && x.values.length; });
             if (hasAny) out[nm] = dump;
         }
     }
+    try { window.__DUMP_DIAG = { candidates: names, found: Object.keys(out), dbsSupported: !!(indexedDB.databases) }; } catch(e){}
     return out;
 }
 
@@ -4329,7 +4333,7 @@ async function exportAssetsAsZip() {
                             try { customFolders[k.replace('TAVERN_CUSTOM_FOLDERS_', '')] = JSON.parse(localStorage.getItem(k)); } catch(e) {}
                         }
                     }
-                    window.AndroidApp.zipAddFile('_meta.json', btoa(unescape(encodeURIComponent(JSON.stringify({ customFolders: customFolders, exportedAt: Date.now(), version: 3 })))));
+                    window.AndroidApp.zipAddFile('_meta.json', btoa(unescape(encodeURIComponent(JSON.stringify({ customFolders: customFolders, exportedAt: Date.now(), version: 3, diag: (window.__DUMP_DIAG || null) })))));
                 } catch(e) { console.warn('[EXPORT] 配置写入跳过:', e); }
 
                 // 额外 IndexedDB（v2 工坊 / 字体）
@@ -4338,6 +4342,7 @@ async function exportAssetsAsZip() {
                     if (Object.keys(dbDump).length) {
                         window.AndroidApp.zipAddFile('extra_indexeddb.json', btoa(unescape(encodeURIComponent(JSON.stringify(dbDump)))));
                     }
+                    try { window.AndroidApp.showToast('DB诊断: 候选=' + JSON.stringify((window.__DUMP_DIAG||{}).candidates) + ' 命中=' + JSON.stringify(Object.keys(dbDump))); } catch(e){}
                 } catch(e) { console.warn('[EXPORT] 额外 IndexedDB 跳过:', e); }
 
                 showToast('⌛', '正在生成 ZIP 并写入 Download...');
