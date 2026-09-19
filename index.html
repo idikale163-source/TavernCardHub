@@ -29,16 +29,16 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="资源合集">
     <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="vendor/tailwind.min.js" onerror="var s=document.createElement('script');s.src='https://cdn.tailwindcss.com';document.head.appendChild(s);"></script>
     <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="vendor/lucide.min.js" onerror="var s=document.createElement('script');s.src='https://unpkg.com/lucide@latest';document.head.appendChild(s);"></script>
     <!-- Mammoth.js for docx -->
-    <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
+    <script src="vendor/mammoth.min.js" onerror="var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js';document.head.appendChild(s);"></script>
     <!-- Supabase JS Client -->
     <!-- Supabase JS Client (multi-CDN fallback) -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
-        onerror="var s=document.createElement('script');s.src='https://unpkg.com/@supabase/supabase-js@2';s.onerror=function(){var t=document.createElement('script');t.src='https://cdnjs.cloudflare.com/ajax/libs/supabase-js/2.39.0/umd/supabase.min.js';document.head.appendChild(t);};document.head.appendChild(s);"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" onerror="var s=document.createElement('script');s.src='vendor/jszip.min.js';document.head.appendChild(s);"></script>
+    <script src="vendor/supabase.min.js"
+        onerror="var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';document.head.appendChild(s);"></script>
+    <script src="vendor/jszip.min.js" onerror="var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js';document.head.appendChild(s);"></script>
     <link rel="stylesheet" href="assets/css/main.css?v=1786377509">
 
 <style id="test-gray-pink-overrides">
@@ -79,7 +79,7 @@
 <body class="h-screen flex flex-col overflow-hidden bg-[#faf6f0]">
 
     <!-- Toast Notification Floating Container -->
-    <div id="toastContainer" class="fixed top-4 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 transform translate-y-[-100%] opacity-0 pointer-events-none">
+    <div id="toastContainer" style="position:fixed;top:-100px;left:50%;transform:translateX(-50%);opacity:0;pointer-events:none;transition:all .3s ease;z-index:50" class="fixed top-4 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 transform translate-y-[-100%] opacity-0 pointer-events-none">
         <div class="bg-[#5c494a]/90 backdrop-blur-md text-white px-4 py-2.5 rounded-full shadow-lg flex items-center gap-2 text-xs font-medium border border-[#8c7173]/30">
             <span id="toastIcon">✨</span>
             <span id="toastMessage">提示信息</span>
@@ -912,7 +912,7 @@
     <script src="assets/js/core.js?v=1786377509"></script>
     <script src="assets/js/sync.js?v=1786377509"></script>
     <script src="assets/js/apikeys.js?v=1786377509"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" onerror="var s=document.createElement('script');s.src='vendor/jszip.min.js';document.head.appendChild(s);"></script>
+    <script src="vendor/jszip.min.js" onerror="var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js';document.head.appendChild(s);"></script>
     <script src="assets/js/ui.js?v=1789743692"></script>
     <script src="assets/js/links.js?v=1786377509"></script>
     <script src="assets/js/font.js?v=1786377509"></script>
