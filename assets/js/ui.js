@@ -4084,6 +4084,71 @@ window.renderGalleryDetailTags = function() {
 
 
 /* ================= ZIP 导出与导入 ================= */
+// ==== 通用：枚举并导出所有额外 IndexedDB（v2 工坊 keyval-store 等） ====
+async function __dumpExtraIndexedDB() {
+    const SKIP = { TavernCardHubDB: 1 };
+    const KNOWN = ['keyval-store', 'FontPreviewBox'];
+    let names = [];
+    try {
+        if (indexedDB.databases) {
+            const dbs = await indexedDB.databases();
+            names = dbs.map(function(d){ return d && d.name; }).filter(Boolean);
+        }
+    } catch (e) {}
+    KNOWN.forEach(function(n){ if (names.indexOf(n) < 0) names.push(n); });
+    const out = {};
+    for (let i = 0; i < names.length; i++) {
+        const nm = names[i];
+        if (SKIP[nm]) continue;
+        const dump = await __readOneIndexedDB(nm, false);
+        if (dump && dump.stores && Object.keys(dump.stores).length) {
+            const hasAny = Object.values(dump.stores).some(function(x){ return x && x.values && x.values.length; });
+            if (hasAny) out[nm] = dump;
+        }
+    }
+    return out;
+}
+
+function __readOneIndexedDB(dbName, retried) {
+    return new Promise(function(resolve){
+        let req;
+        try { req = indexedDB.open(dbName); } catch (e) { resolve(null); return; }
+        let settled = false;
+        function done(v) { if (!settled) { settled = true; resolve(v); } }
+        req.onupgradeneeded = function(){ try { req.result.close(); } catch(e){} done(null); };
+        req.onerror = function(){ done(null); };
+        req.onblocked = function(){
+            if (!retried) { setTimeout(function(){ __readOneIndexedDB(dbName, true).then(done); }, 1500); }
+            else { done(null); }
+        };
+        req.onsuccess = function(){
+            const db = req.result;
+            try {
+                const storeNames = Array.prototype.slice.call(db.objectStoreNames);
+                if (!storeNames.length) { db.close(); done(null); return; }
+                const result = { name: dbName, version: db.version, stores: {} };
+                let pending = storeNames.length;
+                storeNames.forEach(function(sn){
+                    try {
+                        const tx = db.transaction(sn, 'readonly');
+                        const st = tx.objectStore(sn);
+                        const all = st.getAll();
+                        const keyReq = st.getAllKeys();
+                        all.onsuccess = function(){
+                            keyReq.onsuccess = function(){
+                                result.stores[sn] = { keys: keyReq.result, values: all.result };
+                                if (--pending === 0) { db.close(); done(result); }
+                            };
+                            keyReq.onerror = function(){ if (--pending === 0) { db.close(); done(result); } };
+                        };
+                        all.onerror = function(){ if (--pending === 0) { db.close(); done(result); } };
+                    } catch(e) { if (--pending === 0) { db.close(); done(result); } }
+                });
+            } catch(e) { try { db.close(); } catch(_){} done(null); }
+        };
+    });
+}
+
 async function exportAssetsAsZip() {
     try {
         console.log('[EXPORT] 开始执行流式分片导出...');
@@ -4194,48 +4259,7 @@ async function exportAssetsAsZip() {
             // === 导出其他 IndexedDB（角色卡v2 工坊 keyval-store / 字体预览箱）===
             // v2 工坊位于同源 about:blank iframe，其 idb-keyval 数据就存在本页 IndexedDB 环境。
             try {
-                const extraDbs = ['keyval-store', 'FontPreviewBox'];
-                const dbDump = {};
-                for (const dbName of extraDbs) {
-                    const dump = await new Promise((resolve) => {
-                        let req;
-                        try { req = indexedDB.open(dbName); } catch(e) { resolve(null); return; }
-                        req.onsuccess = () => {
-                            const db = req.result;
-                            const storeNames = [...db.objectStoreNames];
-                            if (!storeNames.length) { db.close(); resolve({ name: dbName, version: db.version, stores: {} }); return; }
-                            const result = { name: dbName, version: db.version, stores: {} };
-                            let pending = storeNames.length;
-                            storeNames.forEach((sn) => {
-                                try {
-                                    const tx = db.transaction(sn, 'readonly');
-                                    const st = tx.objectStore(sn);
-                                    const all = st.getAll();
-                                    const keyReq = st.getAllKeys();
-                                    all.onsuccess = () => {
-                                        keyReq.onsuccess = () => {
-                                            result.stores[sn] = { keys: keyReq.result, values: all.result };
-                                            if (--pending === 0) { db.close(); resolve(result); }
-                                        };
-                                        keyReq.onerror = () => { if (--pending === 0) { db.close(); resolve(result); } };
-                                    };
-                                    all.onerror = () => { if (--pending === 0) { db.close(); resolve(result); } };
-                                } catch(e) {
-                                    if (--pending === 0) { db.close(); resolve(result); }
-                                }
-                            });
-                        };
-                        req.onerror = () => resolve(null);
-                        req.onblocked = () => resolve(null);
-                        // 不触发 onupgradeneeded 建库；若库不存在则直接放弃
-                        req.onupgradeneeded = () => { try { req.result.close(); } catch(e) {} resolve(null); };
-                    });
-                    if (dump && dump.stores && Object.keys(dump.stores).length) {
-                        // 只保留有数据的库
-                        const hasAny = Object.values(dump.stores).some(x => x && x.values && x.values.length);
-                        if (hasAny) dbDump[dbName] = dump;
-                    }
-                }
+                const dbDump = await __dumpExtraIndexedDB();
                 if (Object.keys(dbDump).length) {
                     zip.file('extra_indexeddb.json', JSON.stringify(dbDump));
                     console.log('[EXPORT] 附带 IndexedDB:', Object.keys(dbDump).join(', '));
@@ -4310,44 +4334,7 @@ async function exportAssetsAsZip() {
 
                 // 额外 IndexedDB（v2 工坊 / 字体）
                 try {
-                    const extraDbs = ['keyval-store', 'FontPreviewBox'];
-                    const dbDump = {};
-                    for (const dbName of extraDbs) {
-                        const dump = await new Promise((resolve) => {
-                            let req;
-                            try { req = indexedDB.open(dbName); } catch(e) { resolve(null); return; }
-                            req.onsuccess = () => {
-                                const db = req.result;
-                                const storeNames = [...db.objectStoreNames];
-                                if (!storeNames.length) { db.close(); resolve(null); return; }
-                                const result = { name: dbName, version: db.version, stores: {} };
-                                let pending = storeNames.length;
-                                storeNames.forEach((sn) => {
-                                    try {
-                                        const tx = db.transaction(sn, 'readonly');
-                                        const st = tx.objectStore(sn);
-                                        const all = st.getAll();
-                                        const keyReq = st.getAllKeys();
-                                        all.onsuccess = () => {
-                                            keyReq.onsuccess = () => {
-                                                result.stores[sn] = { keys: keyReq.result, values: all.result };
-                                                if (--pending === 0) { db.close(); resolve(result); }
-                                            };
-                                            keyReq.onerror = () => { if (--pending === 0) { db.close(); resolve(result); } };
-                                        };
-                                        all.onerror = () => { if (--pending === 0) { db.close(); resolve(result); } };
-                                    } catch(e) { if (--pending === 0) { db.close(); resolve(result); } }
-                                });
-                            };
-                            req.onerror = () => resolve(null);
-                            req.onblocked = () => resolve(null);
-                            req.onupgradeneeded = () => { try { req.result.close(); } catch(e) {} resolve(null); };
-                        });
-                        if (dump && dump.stores && Object.keys(dump.stores).length) {
-                            const hasAny = Object.values(dump.stores).some(x => x && x.values && x.values.length);
-                            if (hasAny) dbDump[dbName] = dump;
-                        }
-                    }
+                    const dbDump = await __dumpExtraIndexedDB();
                     if (Object.keys(dbDump).length) {
                         window.AndroidApp.zipAddFile('extra_indexeddb.json', btoa(unescape(encodeURIComponent(JSON.stringify(dbDump)))));
                     }
